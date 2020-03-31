@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	. "github.com/Monibuca/engine"
@@ -15,7 +16,7 @@ type FlvFile struct {
 }
 
 func PublishFlvFile(streamPath string) error {
-	if file, err := os.Open(config.Path + streamPath + ".flv"); err == nil {
+	if file, err := os.Open(filepath.Join(config.Path, streamPath+".flv")); err == nil {
 		stream := FlvFile{}
 		if stream.Publish(streamPath, &stream) {
 			defer stream.Close()

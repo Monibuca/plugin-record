@@ -10,6 +10,6 @@ Record
 ### 配置
 配置中的Path 表示要保存的Flv文件的根路径，可以使用相对路径或者绝对路径
 ```toml
-[Plugins.Record]
+[Record]
 Path="resource"
 ```
