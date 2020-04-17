@@ -1,9 +1,16 @@
 <template>
-    <Tabs value="liveStream" @on-click="onClickTab" type="card">
-        <TabPane label="直播流" icon="md-videocam" name="liveStream"  class="layout">
-                <Card v-for="item in Rooms" :key="item.StreamPath" class="room">
-                    <p slot="title">{{typeMap[item.Type]||item.Type}}{{item.StreamPath}}</p>
-                    <StartTime slot="extra" :value="item.StartTime"></StartTime>
+    <div>
+        <mu-tabs :value.sync="active1" indicator-color="#80deea" inverse center>
+            <mu-tab>直播流</mu-tab>
+            <mu-tab>录制的视频</mu-tab>
+        </mu-tabs>
+        <div v-if="Rooms.length==0 && active1==0" class="empty">
+            <Icon type="md-wine" size="50" />没有任何房间
+        </div>
+        <template v-else-if="active1==0">
+            <mu-card v-for="item in Rooms" :key="item.StreamPath" class="room">
+                <mu-card-title :title="item.StreamPath" :sub-title="item.StartTime" />
+                <mu-card-text>
                     <p>
                         {{SoundFormat(item.AudioInfo.SoundFormat)}} {{item.AudioInfo.PacketCount}}
                         {{SoundRate(item.AudioInfo.SoundRate)}} 声道:{{item.AudioInfo.SoundType}}
@@ -12,24 +19,19 @@
                         {{CodecID(item.VideoInfo.CodecID)}} {{item.VideoInfo.PacketCount}}
                         {{item.VideoInfo.SPSInfo.Width}}x{{item.VideoInfo.SPSInfo.Height}}
                     </p>
-                    <template slot="extra">
-                        <Button size="small"
-                            @click="stopRecord(item)"
-                            class="recording"
-                            v-if="isRecording(item)"
-                            icon="ios-radio-button-on"
-                        ></Button>
-                        <Button  size="small" @click="record(item)" v-else icon="ios-radio-button-on"></Button>
-                    </template>
-                </Card>
-                <div v-if="Rooms.length==0" class="empty">
-                    <Icon type="md-wine" size="50" />没有任何房间
-                </div>
-        </TabPane>
-        <TabPane label="录制的视频" icon="ios-folder" name="recordsPanel">
-            <Records ref="recordsPanel" />
-        </TabPane>
-    </Tabs>
+                </mu-card-text>
+                <mu-card-actions>
+                    <mu-button icon @click="stopRecord(item)" class="recording" v-if="isRecording(item)">
+                        <mu-icon value="fiber_manual_record" />
+                    </mu-button>
+                    <mu-button icon @click="record(item)" v-else>
+                        <mu-icon value="fiber_manual_record" />
+                    </mu-button>
+                </mu-card-actions>
+            </mu-card>
+        </template>
+        <Records ref="recordsPanel" v-if="active1==1" />
+    </div>
 </template>
 
 <script>
@@ -152,8 +154,8 @@ export default {
                 );
             };
         },
-        onClickTab(name){
-            this.$refs.recordsPanel.onVisible(name=="recordsPanel")
+        onClickTab(name) {
+            this.$refs.recordsPanel.onVisible(name == "recordsPanel");
         }
     },
     mounted() {
@@ -166,7 +168,6 @@ export default {
 </script>
 
 <style>
-@import url("/iview.css");
 @keyframes recording {
     0% {
         opacity: 0.2;
@@ -196,7 +197,7 @@ export default {
 }
 
 .empty {
-    color: #eb5e46;
+    color: #ffc107;
     width: 100%;
     min-height: 500px;
     display: flex;

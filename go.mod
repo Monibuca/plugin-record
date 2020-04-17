@@ -1,5 +1,5 @@
-module github.com/Monibuca/recordplugin
+module github.com/Monibuca/plugin-record
 
 go 1.13
 
-require github.com/Monibuca/engine v1.1.1
+require github.com/Monibuca/engine v1.2.1

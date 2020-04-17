@@ -1,4 +1,4 @@
-package recordplugin
+package record
 
 import (
 	"errors"

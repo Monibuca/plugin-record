@@ -1,13 +1,16 @@
 <template>
     <div class="records">
-        <Card v-for="item in data" :key="item">
-            <p slot="title">{{item.Path}}</p>
-            <div slot="extra">
-                <Button @click="play(item)" icon="md-play" size="small"></Button>
-                <Button @click="deleteFlv(item)" icon="ios-trash" size="small"></Button>
-            </div>
-            {{unitFormat(item.Size)}} {{toDurationStr(item.Duration)}}
-        </Card>
+        <mu-card v-for="item in data" :key="item">
+            <mu-card-title :title="item.Path" :sub-title="unitFormat(item.Size)+' '+toDurationStr(item.Duration)" />
+            <mu-card-actions>
+                <mu-button @click="play(item)" icon small>
+                    <mu-icon value="play_arrow" />
+                </mu-button>
+                <mu-button @click="deleteFlv(item)" icon small>
+                    <mu-icon value="delete_forever" />
+                </mu-button>
+            </mu-card-actions>
+        </mu-card>
     </div>
 </template>
 
@@ -20,40 +23,36 @@ export default {
     },
     methods: {
         play(item) {
-            window.ajax.get(
+            this.ajax.get(
                 "/record/flv/play",
                 { streamPath: item.Path.replace(".flv", "") },
                 x => {
                     if (x == "success") {
                         this.onVisible(true);
-                        this.$Message.success("开始发布");
+                        this.$toast.success("开始发布");
                     } else {
-                        this.$Message.error(x);
+                        this.$toast.error(x);
                     }
                 }
             );
         },
         deleteFlv(item) {
-            this.$Modal.confirm({
-                title: "提示",
-                content: "<p>是否删除Flv文件</p>",
-                onOk: () => {
-                    window.ajax.get(
+            this.$confirm("是否删除Flv文件", "提示").then(result => {
+                if (result) {
+                    return this.ajax.get(
                         "/record/flv/delete",
                         { streamPath: item.Path.replace(".flv", "") },
                         x => {
                             if (x == "success") {
-                                this.$Message.success("删除成功");
+                                this.$toast.success("删除成功");
                             } else {
-                                this.$Message.error(x);
+                                this.$toast.error(x);
                             }
                         }
                     );
-                },
-                onCancel: () => {}
+                }
             });
         },
-        unitFormat: window.unitFormat,
         toDurationStr(value) {
             if (value > 1000) {
                 let s = value / 1000;
@@ -75,7 +74,7 @@ export default {
         },
         onVisible(visible) {
             if (visible) {
-                window.ajax.getJSON("/record/flv/list", {}, x => {
+                this.ajax.getJSON("/record/flv/list", {}, x => {
                     this.data = x;
                 });
             }
