@@ -4,64 +4,30 @@
             <mu-tab>直播流</mu-tab>
             <mu-tab>录制的视频</mu-tab>
         </mu-tabs>
-        <div v-if="Rooms.length==0 && active1==0" class="empty">
-            <Icon type="md-wine" size="50" />没有任何房间
-        </div>
-        <template v-else-if="active1==0">
-            <mu-card v-for="item in Rooms" :key="item.StreamPath" class="room">
-                <mu-card-title :title="item.StreamPath" :sub-title="item.StartTime" />
-                <mu-card-text>
-                    <p>
-                        {{SoundFormat(item.AudioInfo.SoundFormat)}} {{item.AudioInfo.PacketCount}}
-                        {{SoundRate(item.AudioInfo.SoundRate)}} 声道:{{item.AudioInfo.SoundType}}
-                    </p>
-                    <p>
-                        {{CodecID(item.VideoInfo.CodecID)}} {{item.VideoInfo.PacketCount}}
-                        {{item.VideoInfo.SPSInfo.Width}}x{{item.VideoInfo.SPSInfo.Height}}
-                    </p>
-                </mu-card-text>
-                <mu-card-actions>
-                    <mu-button icon @click="stopRecord(item)" class="recording" v-if="isRecording(item)">
-                        <mu-icon value="fiber_manual_record" />
-                    </mu-button>
-                    <mu-button icon @click="record(item)" v-else>
-                        <mu-icon value="fiber_manual_record" />
-                    </mu-button>
-                </mu-card-actions>
-            </mu-card>
-        </template>
+        <mu-data-table v-if="active1==0" :columns="columns" :data="$store.state.Room" :min-col-width="50"
+            @row-click="(i,r)=>isRecording(r)?stopRecord(r):record(r)">
+            <template slot-scope="scope">
+                <td class="is-center" v-if="isRecording(scope.row)"></td>
+                <td class="is-center" v-else></td>
+                <td class="is-center">{{scope.row.StreamPath}}</td>
+                <td class="is-center">{{scope.row.Type||"await"}}</td>
+                <td class="is-center">
+                    <StartTime :value="scope.row.StartTime"></StartTime>
+                </td>
+                <td class="is-center">{{SoundFormat(scope.row.AudioInfo.SoundFormat)}}</td>
+                <td class="is-center">{{SoundRate(scope.row.AudioInfo.SoundRate)}}</td>
+                <td class="is-center">{{scope.row.AudioInfo.SoundType}}</td>
+                <td class="is-center">{{CodecID(scope.row.VideoInfo.CodecID)}}</td>
+                <td class="is-center">{{scope.row.VideoInfo.SPSInfo.Width}}x{{scope.row.VideoInfo.SPSInfo.Height}}</td>
+                <td class="is-center">{{scope.row.AudioInfo.PacketCount}}/{{scope.row.VideoInfo.PacketCount}}</td>
+                <td class="is-center">{{getSubscriberCount(scope.row)}}</td>
+            </template>
+        </mu-data-table>
         <Records ref="recordsPanel" v-if="active1==1" />
     </div>
 </template>
 
 <script>
-let roomsES = null;
-const SoundFormat = {
-    0: "Linear PCM, platform endian",
-    1: "ADPCM",
-    2: "MP3",
-    3: "Linear PCM, little endian",
-    4: "Nellymoser 16kHz mono",
-    5: "Nellymoser 8kHz mono",
-    6: "Nellymoser",
-    7: "G.711 A-law logarithmic PCM",
-    8: "G.711 mu-law logarithmic PCM",
-    9: "reserved",
-    10: "AAC",
-    11: "Speex",
-    14: "MP3 8Khz",
-    15: "Device-specific sound"
-};
-const CodecID = {
-    1: "JPEG (currently unused)",
-    2: "Sorenson H.263",
-    3: "Screen video",
-    4: "On2 VP6",
-    5: "On2 VP6 with alpha channel",
-    6: "Screen video version 2",
-    7: "AVC",
-    12: "H265"
-};
 import Records from "./components/Records";
 export default {
     components: {
@@ -69,55 +35,81 @@ export default {
     },
     data() {
         return {
-            Rooms: [],
-            typeMap: {
-                Receiver: "📡",
-                FlvFile: "🎥",
-                TS: "🎬",
-                HLS: "🍎",
-                "": "⏳",
-                Match365: "🏆",
-                RTMP: "🚠"
-            }
+            columns: [
+                {
+                    title: "房间",
+                    name: "StreamPath",
+                    sortable: true
+                },
+                {
+                    title: "类型",
+                    name: "Type",
+                    sortable: true
+                },
+                {
+                    title: "开始时间",
+                    name: "StartTime",
+                    sortable: true
+                },
+                {
+                    title: "音频格式",
+                    name: "AudioInfo"
+                },
+                {
+                    title: "采样率",
+                    name: "AudioInfo"
+                },
+                {
+                    title: "声道",
+                    name: "AudioInfo"
+                },
+                {
+                    title: "视频格式",
+                    name: "VideoInfo"
+                },
+                {
+                    title: "分辨率",
+                    name: "VideoInfo"
+                },
+                {
+                    title: "数据包",
+                    name: ""
+                },
+                {
+                    title: "订阅者",
+                    name: "Subscribes"
+                }
+            ]
         };
     },
     methods: {
-        SoundFormat(soundFormat) {
-            return SoundFormat[soundFormat];
-        },
-        CodecID(codec) {
-            return CodecID[codec];
-        },
-        SoundRate(rate) {
-            return rate > 1000 ? rate / 1000 + "kHz" : rate + "Hz";
-        },
         record(item) {
-            this.$Modal.confirm({
-                title: "提示",
-                content:
-                    "<p>是否使用追加模式</p><small>选择取消将覆盖已有文件</small>",
-                onOk: () => {
-                    window.ajax.get(
-                        "/record/flv?append=true",
-                        { streamPath: item.StreamPath },
-                        x => {
-                            if (x == "success") {
-                                this.$Message.success("开始录制(追加模式)");
-                            } else {
-                                this.$Message.error(x);
+            let append = false;
+            this.$confirm(
+                h =>
+                    h("mu-switch", {
+                        props: {
+                            label: "追加模式"
+                        },
+                        on: {
+                            change(value) {
+                                append = value;
                             }
                         }
-                    );
-                },
-                onCancel: () => {
-                    window.ajax.get(
-                        "/record/flv",
+                    }),
+                "是否开始录制"
+            ).then(result => {
+                if (result) {
+                    this.ajax.get(
+                        "/record/flv?append=" + append,
                         { streamPath: item.StreamPath },
                         x => {
                             if (x == "success") {
-                                this.$Message.success("开始录制");
+                                this.$toast.success(
+                                    "开始录制" + (append ? "(追加模式)" : "")
+                                );
                             } else {
-                                this.$Message.error(x);
+                                this.$toast.error(x);
                             }
                         }
                     );
@@ -125,49 +117,31 @@ export default {
             });
         },
         stopRecord(item) {
-            window.ajax.get(
-                "/record/flv/stop",
-                { streamPath: item.StreamPath },
-                x => {
-                    if (x == "success") {
-                        this.$Message.success("停止录制");
-                    } else {
-                        this.$Message.error(x);
+            this.$confirm("是否停止录制", "提示").then(result => {
+                this.ajax.get(
+                    "/record/flv/stop",
+                    { streamPath: item.StreamPath },
+                    x => {
+                        if (x == "success") {
+                            this.$toast.success("停止录制");
+                        } else {
+                            this.$toast.error(x);
+                        }
                     }
-                }
-            );
+                );
+            });
         },
         isRecording(item) {
             return (
                 item.SubscriberInfo &&
                 item.SubscriberInfo.find(x => x.Type == "FlvRecord")
             );
-        },
-        fetchRooms() {
-            roomsES = new EventSource("/api/summary");
-            roomsES.onmessage = evt => {
-                if (!evt.data) return;
-                let summary = JSON.parse(evt.data);
-                this.Rooms = (summary && summary.Rooms) || [];
-                this.Rooms.sort((a, b) =>
-                    a.StreamPath > b.StreamPath ? 1 : -1
-                );
-            };
-        },
-        onClickTab(name) {
-            this.$refs.recordsPanel.onVisible(name == "recordsPanel");
         }
-    },
-    mounted() {
-        this.fetchRooms();
-    },
-    destroyed() {
-        roomsES.close();
     }
 };
 </script>
 
-<style>
+<style scoped>
 @keyframes recording {
     0% {
         opacity: 0.2;

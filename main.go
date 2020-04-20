@@ -27,12 +27,10 @@ type FlvFileInfo struct {
 
 func init() {
 	InstallPlugin(&PluginConfig{
-		Name:    "Record",
-		Type:    PLUGIN_SUBSCRIBER,
-		Config:  &config,
-		Version: "1.0.0",
-		UI:      CurrentDir("dashboard", "ui", "plugin-record.min.js"),
-		Run:     run,
+		Name:   "Record",
+		Type:   PLUGIN_SUBSCRIBER,
+		Config: &config,
+		Run:    run,
 	})
 }
 func run() {
@@ -52,7 +50,7 @@ func run() {
 	})
 	http.HandleFunc("/record/flv", func(writer http.ResponseWriter, r *http.Request) {
 		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
-			if err := SaveFlv(streamPath, r.URL.Query().Get("append") != ""); err != nil {
+			if err := SaveFlv(streamPath, r.URL.Query().Get("append") == "true"); err != nil {
 				writer.Write([]byte(err.Error()))
 			} else {
 				writer.Write([]byte("success"))
