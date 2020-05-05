@@ -6,9 +6,9 @@ import (
 	"path"
 	"path/filepath"
 
-	. "github.com/Monibuca/engine"
-	"github.com/Monibuca/engine/avformat"
-	"github.com/Monibuca/engine/util"
+	. "github.com/Monibuca/engine/v2"
+	"github.com/Monibuca/engine/v2/avformat"
+	"github.com/Monibuca/engine/v2/util"
 )
 
 func getDuration(file *os.File) uint32 {
@@ -18,10 +18,9 @@ func getDuration(file *os.File) uint32 {
 		if tagSize, err = util.ReadByteToUint32(file, true); err == nil {
 			_, err = file.Seek(-int64(tagSize)-4, io.SeekEnd)
 			if err == nil {
-				var tag *avformat.AVPacket
-				tag, err = avformat.ReadFLVTag(file)
+				_, timestamp, _, err := avformat.ReadFLVTag(file)
 				if err == nil {
-					return tag.Timestamp
+					return timestamp
 				}
 			}
 		}
@@ -41,7 +40,7 @@ func SaveFlv(streamPath string, append bool) error {
 	if err != nil {
 		return err
 	}
-	p := OutputStream{SendHandler: func(packet *avformat.SendPacket) error {
+	p := Subscriber{OnData: func(packet *avformat.SendPacket) error {
 		return avformat.WriteFLVTag(file, packet)
 	}}
 	p.ID = filePath
@@ -55,7 +54,7 @@ func SaveFlv(streamPath string, append bool) error {
 	if err == nil {
 		recordings.Store(filePath, &p)
 		go func() {
-			p.Play(streamPath)
+			p.Subscribe(streamPath)
 			file.Close()
 		}()
 	} else {

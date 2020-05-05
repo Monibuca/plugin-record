@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	. "github.com/Monibuca/engine"
-	. "github.com/Monibuca/engine/util"
+	. "github.com/Monibuca/engine/v2"
+	. "github.com/Monibuca/engine/v2/util"
 )
 
 var config = struct {
@@ -65,7 +65,7 @@ func run() {
 		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
 			filePath := filepath.Join(config.Path, streamPath+".flv")
 			if stream, ok := recordings.Load(filePath); ok {
-				output := stream.(*OutputStream)
+				output := stream.(*Subscriber)
 				output.Close()
 				w.Write([]byte("success"))
 			} else {
@@ -103,7 +103,7 @@ func run() {
 		}
 	})
 }
-func onSubscribe(s *OutputStream) {
+func onSubscribe(s *Subscriber) {
 	filePath := filepath.Join(config.Path, s.StreamPath+".flv")
 	if s.Publisher == nil && Exist(filePath) {
 		go PublishFlvFile(s.StreamPath)
@@ -123,8 +123,10 @@ func tree(dstPath string, level int) (files []*FlvFileInfo, err error) {
 	}
 	if !fileInfo.IsDir() { //如果dstF是文件
 		if path.Ext(fileInfo.Name()) == ".flv" {
+			p := strings.TrimPrefix(dstPath, config.Path)
+			p = strings.ReplaceAll(p, "\\", "/")
 			files = append(files, &FlvFileInfo{
-				Path:     strings.TrimPrefix(strings.TrimPrefix(dstPath, config.Path), "/"),
+				Path:     strings.TrimPrefix(p, "/"),
 				Size:     fileInfo.Size(),
 				Duration: getDuration(dstF),
 			})

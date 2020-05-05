@@ -1,24 +1,35 @@
 <template>
-    <div class="records">
-        <mu-card v-for="item in data" :key="item">
-            <mu-card-title :title="item.Path" :sub-title="unitFormat(item.Size)+' '+toDurationStr(item.Duration)" />
-            <mu-card-actions>
-                <mu-button @click="play(item)" icon small>
+    <mu-data-table :data="data" :columns="columns">
+        <template #default="{row}">
+            <td>{{row.Path}}</td>
+            <td>{{unitFormat(row.Size)}}</td>
+            <td>{{toDurationStr(row.Duration)}}</td>
+            <td>
+                <mu-button @click="play(row)" icon small>
                     <mu-icon value="play_arrow" />
                 </mu-button>
-                <mu-button @click="deleteFlv(item)" icon small>
+                <mu-button @click="deleteFlv(row)" icon small>
                     <mu-icon value="delete_forever" />
                 </mu-button>
-            </mu-card-actions>
-        </mu-card>
-    </div>
+            </td>
+        </template>
+    </mu-data-table>
 </template>
 
 <script>
 export default {
     data() {
         return {
-            data: []
+            data: [],
+            columns:[
+                {
+                    title:"文件路径"
+                },{
+                    title:"大小"
+                },{
+                    title:"时长"
+                },{title:"操作"}
+            ]
         };
     },
     methods: {
@@ -28,7 +39,7 @@ export default {
                 { streamPath: item.Path.replace(".flv", "") },
                 x => {
                     if (x == "success") {
-                        this.onVisible(true);
+                        this.ajax.getJSON("/record/flv/list", x => this.data = x);
                         this.$toast.success("开始发布");
                     } else {
                         this.$toast.error(x);
@@ -71,25 +82,11 @@ export default {
             } else {
                 return value + "ms";
             }
-        },
-        onVisible(visible) {
-            if (visible) {
-                this.ajax.getJSON("/record/flv/list", {}, x => {
-                    this.data = x;
-                });
-            }
         }
+    },
+    mounted() {
+        this.ajax.getJSON("/record/flv/list", x => this.data = x);
     }
 };
 </script>
 
-<style scoped>
-.records {
-    display: flex;
-    flex-wrap: wrap;
-    padding: 0 15px;
-}
-.records > * {
-    width: 200px;
-}
-</style>

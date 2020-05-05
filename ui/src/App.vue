@@ -1,29 +1,12 @@
 <template>
     <div>
-        <mu-tabs :value.sync="active1" indicator-color="#80deea" inverse center>
-            <mu-tab>直播流</mu-tab>
-            <mu-tab>录制的视频</mu-tab>
-        </mu-tabs>
-        <mu-data-table v-if="active1==0" :columns="columns" :data="$store.state.Room" :min-col-width="50"
-            @row-click="(i,r)=>isRecording(r)?stopRecord(r):record(r)">
-            <template slot-scope="scope">
-                <td class="is-center" v-if="isRecording(scope.row)"></td>
-                <td class="is-center" v-else></td>
-                <td class="is-center">{{scope.row.StreamPath}}</td>
-                <td class="is-center">{{scope.row.Type||"await"}}</td>
-                <td class="is-center">
-                    <StartTime :value="scope.row.StartTime"></StartTime>
-                </td>
-                <td class="is-center">{{SoundFormat(scope.row.AudioInfo.SoundFormat)}}</td>
-                <td class="is-center">{{SoundRate(scope.row.AudioInfo.SoundRate)}}</td>
-                <td class="is-center">{{scope.row.AudioInfo.SoundType}}</td>
-                <td class="is-center">{{CodecID(scope.row.VideoInfo.CodecID)}}</td>
-                <td class="is-center">{{scope.row.VideoInfo.SPSInfo.Width}}x{{scope.row.VideoInfo.SPSInfo.Height}}</td>
-                <td class="is-center">{{scope.row.AudioInfo.PacketCount}}/{{scope.row.VideoInfo.PacketCount}}</td>
-                <td class="is-center">{{getSubscriberCount(scope.row)}}</td>
+        <Records ref="recordsPanel" v-if="$parent.titleTabActive==1" />
+        <stream-table v-else>
+            <template v-slot="{row:stream}">
+                <m-button v-if="isRecording(stream)" @click="stopRecord(stream)" blink>正在录制</m-button>
+                <m-button v-else @click="record(stream)">录制</m-button>
             </template>
-        </mu-data-table>
-        <Records ref="recordsPanel" v-if="active1==1" />
+        </stream-table>
     </div>
 </template>
 
@@ -34,53 +17,7 @@ export default {
         Records
     },
     data() {
-        return {
-            columns: [
-                {
-                    title: "房间",
-                    name: "StreamPath",
-                    sortable: true
-                },
-                {
-                    title: "类型",
-                    name: "Type",
-                    sortable: true
-                },
-                {
-                    title: "开始时间",
-                    name: "StartTime",
-                    sortable: true
-                },
-                {
-                    title: "音频格式",
-                    name: "AudioInfo"
-                },
-                {
-                    title: "采样率",
-                    name: "AudioInfo"
-                },
-                {
-                    title: "声道",
-                    name: "AudioInfo"
-                },
-                {
-                    title: "视频格式",
-                    name: "VideoInfo"
-                },
-                {
-                    title: "分辨率",
-                    name: "VideoInfo"
-                },
-                {
-                    title: "数据包",
-                    name: ""
-                },
-                {
-                    title: "订阅者",
-                    name: "Subscribes"
-                }
-            ]
-        };
+        return {};
     },
     methods: {
         record(item) {
@@ -137,6 +74,9 @@ export default {
                 item.SubscriberInfo.find(x => x.Type == "FlvRecord")
             );
         }
+    },
+    mounted() {
+        this.$parent.titleTabs = ["StreamList", "录制的视频"];
     }
 };
 </script>
