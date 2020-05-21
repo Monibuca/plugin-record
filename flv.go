@@ -35,8 +35,8 @@ func SaveFlv(streamPath string, append bool) error {
 		flag = flag | os.O_TRUNC | os.O_WRONLY
 	}
 	filePath := filepath.Join(config.Path, streamPath+".flv")
-	os.MkdirAll(path.Dir(filePath), 0666)
-	file, err := os.OpenFile(filePath, flag, 0666)
+	os.MkdirAll(path.Dir(filePath), 0775)
+	file, err := os.OpenFile(filePath, flag, 0775)
 	if err != nil {
 		return err
 	}
