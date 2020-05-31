@@ -55,17 +55,20 @@ export default {
         },
         stopRecord(item) {
             this.$confirm("是否停止录制", "提示").then(result => {
-                this.ajax.get(
-                    "/record/flv/stop",
-                    { streamPath: item.StreamPath },
-                    x => {
-                        if (x == "success") {
-                            this.$toast.success("停止录制");
-                        } else {
-                            this.$toast.error(x);
+                if(result)
+                {
+                    this.ajax.get(
+                        "/record/flv/stop",
+                        { streamPath: item.StreamPath },
+                        x => {
+                            if (x == "success") {
+                                this.$toast.success("停止录制");
+                            } else {
+                                this.$toast.error(x);
+                            }
                         }
-                    }
-                );
+                    );
+                }
             });
         },
         isRecording(item) {

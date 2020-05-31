@@ -13,11 +13,12 @@ import (
 	. "github.com/Monibuca/engine/v2/util"
 )
 
-var config = struct {
+var config struct {
 	Path        string
 	AutoPublish bool
-}{}
-var recordings = sync.Map{}
+	AutoRecord  bool
+}
+var recordings sync.Map
 
 type FlvFileInfo struct {
 	Path     string
@@ -31,10 +32,19 @@ func init() {
 		Type:   PLUGIN_SUBSCRIBER,
 		Config: &config,
 		Run:    run,
+		HotConfig: map[string]func(interface{}){
+			"AutoPublish": func(v interface{}) {
+				config.AutoPublish = v.(bool)
+			},
+			"AutoRecord": func(v interface{}) {
+				config.AutoRecord = v.(bool)
+			},
+		},
 	})
 }
 func run() {
 	OnSubscribeHooks.AddHook(onSubscribe)
+	OnPublishHooks.AddHook(onPublish)
 	os.MkdirAll(config.Path, 0777)
 	http.HandleFunc("/record/flv/list", func(writer http.ResponseWriter, r *http.Request) {
 		if files, err := tree(config.Path, 0); err == nil {
@@ -104,9 +114,16 @@ func run() {
 	})
 }
 func onSubscribe(s *Subscriber) {
-	filePath := filepath.Join(config.Path, s.StreamPath+".flv")
-	if s.Publisher == nil && Exist(filePath) {
-		go PublishFlvFile(s.StreamPath)
+	if config.AutoPublish {
+		filePath := filepath.Join(config.Path, s.StreamPath+".flv")
+		if s.Publisher == nil && Exist(filePath) {
+			go PublishFlvFile(s.StreamPath)
+		}
+	}
+}
+func onPublish(p *Stream) {
+	if config.AutoRecord {
+		go SaveFlv(p.StreamPath, false)
 	}
 }
 
