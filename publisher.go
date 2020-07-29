@@ -16,7 +16,9 @@ type FlvFile struct {
 }
 
 func PublishFlvFile(streamPath string) error {
-	if file, err := os.Open(filepath.Join(config.Path, streamPath+".flv")); err == nil {
+	flvPath := filepath.Join(config.Path, streamPath+".flv")
+	os.MkdirAll(filepath.Dir(flvPath), 0755)
+	if file, err := os.Open(flvPath); err == nil {
 		stream := FlvFile{}
 		if stream.Publish(streamPath) {
 			stream.Type = "FlvFile"

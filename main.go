@@ -45,7 +45,7 @@ func init() {
 func run() {
 	OnSubscribeHooks.AddHook(onSubscribe)
 	OnPublishHooks.AddHook(onPublish)
-	os.MkdirAll(config.Path, 0777)
+	os.MkdirAll(config.Path, 0755)
 	http.HandleFunc("/record/flv/list", func(writer http.ResponseWriter, r *http.Request) {
 		if files, err := tree(config.Path, 0); err == nil {
 			var bytes []byte
