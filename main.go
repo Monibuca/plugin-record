@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	. "github.com/Monibuca/engine/v2"
-	. "github.com/Monibuca/engine/v2/util"
+	. "github.com/Monibuca/engine/v3"
+	. "github.com/Monibuca/utils/v3"
 )
 
 var config struct {
@@ -29,7 +29,6 @@ type FlvFileInfo struct {
 func init() {
 	InstallPlugin(&PluginConfig{
 		Name:   "Record",
-		Type:   PLUGIN_SUBSCRIBER,
 		Config: &config,
 		Run:    run,
 		HotConfig: map[string]func(interface{}){
@@ -43,10 +42,10 @@ func init() {
 	})
 }
 func run() {
-	OnSubscribeHooks.AddHook(onSubscribe)
-	OnPublishHooks.AddHook(onPublish)
+	go AddHook(HOOK_SUBSCRIBE, onSubscribe)
+	go AddHook(HOOK_PUBLISH, onPublish)
 	os.MkdirAll(config.Path, 0755)
-	http.HandleFunc("/record/flv/list", func(writer http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/record/flv/list", func(writer http.ResponseWriter, r *http.Request) {
 		if files, err := tree(config.Path, 0); err == nil {
 			var bytes []byte
 			if bytes, err = json.Marshal(files); err == nil {
@@ -58,7 +57,7 @@ func run() {
 			writer.Write([]byte("{\"err\":\"" + err.Error() + "\"}"))
 		}
 	})
-	http.HandleFunc("/record/flv", func(writer http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/record/flv", func(writer http.ResponseWriter, r *http.Request) {
 		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
 			if err := SaveFlv(streamPath, r.URL.Query().Get("append") == "true"); err != nil {
 				writer.Write([]byte(err.Error()))
@@ -70,8 +69,8 @@ func run() {
 		}
 	})
 
-	http.HandleFunc("/record/flv/stop", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+	http.HandleFunc("/api/record/flv/stop", func(w http.ResponseWriter, r *http.Request) {
+		CORS(w, r)
 		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
 			filePath := filepath.Join(config.Path, streamPath+".flv")
 			if stream, ok := recordings.Load(filePath); ok {
@@ -85,7 +84,7 @@ func run() {
 			w.Write([]byte("no such stream"))
 		}
 	})
-	http.HandleFunc("/record/flv/play", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/record/flv/play", func(w http.ResponseWriter, r *http.Request) {
 		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
 			if err := PublishFlvFile(streamPath); err != nil {
 				w.Write([]byte(err.Error()))
@@ -96,7 +95,7 @@ func run() {
 			w.Write([]byte("no streamPath"))
 		}
 	})
-	http.HandleFunc("/record/flv/delete", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/record/flv/delete", func(w http.ResponseWriter, r *http.Request) {
 		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
 			filePath := filepath.Join(config.Path, streamPath+".flv")
 			if Exist(filePath) {
@@ -113,17 +112,19 @@ func run() {
 		}
 	})
 }
-func onSubscribe(s *Subscriber) {
+func onSubscribe(v interface{}) {
+	s:=v.(*Subscriber)
 	if config.AutoPublish {
 		filePath := filepath.Join(config.Path, s.StreamPath+".flv")
 		if s.Publisher == nil && Exist(filePath) {
-			go PublishFlvFile(s.StreamPath)
+			PublishFlvFile(s.StreamPath)
 		}
 	}
 }
-func onPublish(p *Stream) {
+func onPublish(v interface{}) {
+	p := v.(*Stream)
 	if config.AutoRecord {
-		go SaveFlv(p.StreamPath, false)
+		SaveFlv(p.StreamPath, false)
 	}
 }
 
