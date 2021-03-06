@@ -45,27 +45,29 @@ func run() {
 	go AddHook(HOOK_SUBSCRIBE, onSubscribe)
 	go AddHook(HOOK_PUBLISH, onPublish)
 	os.MkdirAll(config.Path, 0755)
-	http.HandleFunc("/api/record/flv/list", func(writer http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/record/flv/list", func(w http.ResponseWriter, r *http.Request) {
+		CORS(w, r)
 		if files, err := tree(config.Path, 0); err == nil {
 			var bytes []byte
 			if bytes, err = json.Marshal(files); err == nil {
-				writer.Write(bytes)
+				w.Write(bytes)
 			} else {
-				writer.Write([]byte("{\"err\":\"" + err.Error() + "\"}"))
+				w.Write([]byte("{\"err\":\"" + err.Error() + "\"}"))
 			}
 		} else {
-			writer.Write([]byte("{\"err\":\"" + err.Error() + "\"}"))
+			w.Write([]byte("{\"err\":\"" + err.Error() + "\"}"))
 		}
 	})
-	http.HandleFunc("/api/record/flv", func(writer http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/record/flv", func(w http.ResponseWriter, r *http.Request) {
+		CORS(w, r)
 		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
 			if err := SaveFlv(streamPath, r.URL.Query().Get("append") == "true"); err != nil {
-				writer.Write([]byte(err.Error()))
+				w.Write([]byte(err.Error()))
 			} else {
-				writer.Write([]byte("success"))
+				w.Write([]byte("success"))
 			}
 		} else {
-			writer.Write([]byte("no streamPath"))
+			w.Write([]byte("no streamPath"))
 		}
 	})
 
@@ -85,6 +87,7 @@ func run() {
 		}
 	})
 	http.HandleFunc("/api/record/flv/play", func(w http.ResponseWriter, r *http.Request) {
+		CORS(w, r)
 		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
 			if err := PublishFlvFile(streamPath); err != nil {
 				w.Write([]byte(err.Error()))
@@ -96,6 +99,7 @@ func run() {
 		}
 	})
 	http.HandleFunc("/api/record/flv/delete", func(w http.ResponseWriter, r *http.Request) {
+		CORS(w, r)
 		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
 			filePath := filepath.Join(config.Path, streamPath+".flv")
 			if Exist(filePath) {
@@ -113,7 +117,7 @@ func run() {
 	})
 }
 func onSubscribe(v interface{}) {
-	s:=v.(*Subscriber)
+	s := v.(*Subscriber)
 	if config.AutoPublish {
 		filePath := filepath.Join(config.Path, s.StreamPath+".flv")
 		if s.Publisher == nil && Exist(filePath) {

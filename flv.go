@@ -56,12 +56,9 @@ func SaveFlv(streamPath string, append bool) error {
 		recordings.Store(filePath, &p)
 		if err := p.Subscribe(streamPath); err == nil {
 			at, vt := p.OriginAudioTrack, p.OriginVideoTrack
-			var aac byte
-			if at.SoundFormat == 10 {
-				aac = at.RtmpTag[0]
-			}
+			tag0 := at.RtmpTag[0]
 			p.OnAudio = func(audio AudioPack) {
-				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, audio.Timestamp, audio.ToRTMPTag(aac))
+				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, audio.Timestamp, audio.ToRTMPTag(tag0))
 			}
 			p.OnVideo = func(video VideoPack) {
 				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, video.Timestamp, video.ToRTMPTag())
