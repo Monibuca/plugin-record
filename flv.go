@@ -45,9 +45,9 @@ func SaveFlv(streamPath string, append bool) error {
 		ID:   filePath,
 		Type: "FlvRecord",
 	}
-
+	var offsetTime uint32
 	if append {
-		p.OffsetTime = getDuration(file)
+		offsetTime = getDuration(file)
 		file.Seek(0, io.SeekEnd)
 	} else {
 		_, err = file.Write(codec.FLVHeader)
@@ -55,13 +55,25 @@ func SaveFlv(streamPath string, append bool) error {
 	if err == nil {
 		recordings.Store(filePath, &p)
 		if err := p.Subscribe(streamPath); err == nil {
-			at, vt := p.OriginAudioTrack, p.OriginVideoTrack
+			at, vt := p.WaitAudioTrack("aac", "pcma", "pcmu"), p.WaitVideoTrack("h264")
 			tag0 := at.RtmpTag[0]
 			p.OnAudio = func(audio AudioPack) {
-				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, audio.Timestamp, audio.ToRTMPTag(tag0))
+				if !append && tag0>>4 == 10 { //AAC格式需要发送AAC头
+					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, 0, at.RtmpTag)
+				}
+				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, audio.Timestamp+offsetTime, audio.ToRTMPTag(tag0))
+				p.OnAudio = func(audio AudioPack) {
+					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, audio.Timestamp+offsetTime, audio.ToRTMPTag(tag0))
+				}
 			}
 			p.OnVideo = func(video VideoPack) {
-				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, video.Timestamp, video.ToRTMPTag())
+				if !append {
+					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, 0, vt.RtmpTag)
+				}
+				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, video.Timestamp+offsetTime, video.ToRTMPTag())
+				p.OnVideo = func(video VideoPack) {
+					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, video.Timestamp+offsetTime, video.ToRTMPTag())
+				}
 			}
 			go func() {
 				p.Play(at, vt)
