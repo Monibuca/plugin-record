@@ -3,7 +3,6 @@ package record
 import (
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 
 	. "github.com/Monibuca/engine/v3"
@@ -35,7 +34,9 @@ func SaveFlv(streamPath string, append bool) error {
 		flag = flag | os.O_TRUNC | os.O_WRONLY
 	}
 	filePath := filepath.Join(config.Path, streamPath+".flv")
-	os.MkdirAll(path.Dir(filePath), 0755)
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		return err
+	}
 	file, err := os.OpenFile(filePath, flag, 0755)
 	if err != nil {
 		return err
