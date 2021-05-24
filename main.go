@@ -1,6 +1,7 @@
 package record
 
 import (
+	"embed"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -26,12 +27,17 @@ type FlvFileInfo struct {
 	Duration uint32
 }
 
+//go:embed ui/*
+//go:embed README.md
+var ui embed.FS
+
 func init() {
 	InstallPlugin(&PluginConfig{
 		Name:   "Record",
 		Type:   PLUGIN_SUBSCRIBER,
 		Config: &config,
 		Run:    run,
+		UIFile: &ui,
 		HotConfig: map[string]func(interface{}){
 			"AutoPublish": func(v interface{}) {
 				config.AutoPublish = v.(bool)
