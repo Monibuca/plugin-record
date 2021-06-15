@@ -15,7 +15,6 @@ import (
 
 var config struct {
 	Path        string
-	AutoPublish bool
 	AutoRecord  bool
 }
 var recordings sync.Map
@@ -32,9 +31,6 @@ func init() {
 		Config: &config,
 		Run:    run,
 		HotConfig: map[string]func(interface{}){
-			"AutoPublish": func(v interface{}) {
-				config.AutoPublish = v.(bool)
-			},
 			"AutoRecord": func(v interface{}) {
 				config.AutoRecord = v.(bool)
 			},
@@ -42,7 +38,6 @@ func init() {
 	})
 }
 func run() {
-	go AddHook(HOOK_SUBSCRIBE, onSubscribe)
 	go AddHook(HOOK_PUBLISH, onPublish)
 	os.MkdirAll(config.Path, 0755)
 	http.HandleFunc("/api/record/flv/list", func(w http.ResponseWriter, r *http.Request) {
@@ -116,15 +111,7 @@ func run() {
 		}
 	})
 }
-func onSubscribe(v interface{}) {
-	s := v.(*Subscriber)
-	if config.AutoPublish {
-		filePath := filepath.Join(config.Path, s.StreamPath+".flv")
-		if s.Publisher == nil && Exist(filePath) {
-			PublishFlvFile(s.StreamPath)
-		}
-	}
-}
+
 func onPublish(v interface{}) {
 	p := v.(*Stream)
 	if config.AutoRecord {

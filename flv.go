@@ -43,8 +43,9 @@ func SaveFlv(streamPath string, append bool) error {
 	}
 	// return avformat.WriteFLVTag(file, packet)
 	p := Subscriber{
-		ID:   filePath,
-		Type: "FlvRecord",
+		ID:               filePath,
+		Type:             "FlvRecord",
+		ByteStreamFormat: true,
 	}
 	var offsetTime uint32
 	if append {
@@ -56,24 +57,23 @@ func SaveFlv(streamPath string, append bool) error {
 	if err == nil {
 		recordings.Store(filePath, &p)
 		if err := p.Subscribe(streamPath); err == nil {
-			at, vt := p.WaitAudioTrack("aac", "pcma", "pcmu"), p.WaitVideoTrack("h264")
-			tag0 := at.RtmpTag[0]
+			vt, at := p.WaitVideoTrack(), p.WaitAudioTrack()
 			p.OnAudio = func(audio AudioPack) {
-				if !append && tag0>>4 == 10 { //AAC格式需要发送AAC头
-					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, 0, at.RtmpTag)
+				if !append && at.CodecID == 10 { //AAC格式需要发送AAC头
+					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, 0, at.ExtraData)
 				}
-				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, audio.Timestamp+offsetTime, audio.ToRTMPTag(tag0))
+				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, audio.Timestamp+offsetTime, audio.Payload)
 				p.OnAudio = func(audio AudioPack) {
-					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, audio.Timestamp+offsetTime, audio.ToRTMPTag(tag0))
+					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, audio.Timestamp+offsetTime, audio.Payload)
 				}
 			}
 			p.OnVideo = func(video VideoPack) {
 				if !append {
-					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, 0, vt.RtmpTag)
+					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, 0, vt.ExtraData.Payload)
 				}
-				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, video.Timestamp+offsetTime, video.ToRTMPTag())
+				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, video.Timestamp+offsetTime, video.Payload)
 				p.OnVideo = func(video VideoPack) {
-					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, video.Timestamp+offsetTime, video.ToRTMPTag())
+					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, video.Timestamp+offsetTime, video.Payload)
 				}
 			}
 			go func() {
