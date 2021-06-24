@@ -40,6 +40,7 @@ func init() {
 func run() {
 	go AddHook(HOOK_PUBLISH, onPublish)
 	os.MkdirAll(config.Path, 0755)
+	http.HandleFunc("/vod/", VodHandler)
 	http.HandleFunc("/api/record/flv/list", func(w http.ResponseWriter, r *http.Request) {
 		CORS(w, r)
 		if files, err := tree(config.Path, 0); err == nil {
