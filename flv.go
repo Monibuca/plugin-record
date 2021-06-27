@@ -10,7 +10,7 @@ import (
 	"github.com/Monibuca/utils/v3/codec"
 )
 
-func getDuration(file *os.File) uint32 {
+func getDuration(file FileWr) uint32 {
 	_, err := file.Seek(-4, io.SeekEnd)
 	if err == nil {
 		var tagSize uint32
@@ -34,12 +34,18 @@ func SaveFlv(streamPath string, append bool) error {
 		flag = flag | os.O_TRUNC | os.O_WRONLY
 	}
 	filePath := filepath.Join(config.Path, streamPath+".flv")
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-		return err
-	}
-	file, err := os.OpenFile(filePath, flag, 0755)
-	if err != nil {
-		return err
+	var file FileWr
+	var err error
+	if ExtraConfig.CreateFileFn == nil {
+		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			return err
+		}
+		file, err = os.OpenFile(filePath, flag, 0755)
+		if err != nil {
+			return err
+		}
+	}else {
+		file,err  =  ExtraConfig.CreateFileFn(filePath)
 	}
 	// return avformat.WriteFLVTag(file, packet)
 	p := Subscriber{
