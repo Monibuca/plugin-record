@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -23,6 +24,18 @@ type FlvFileInfo struct {
 	Path     string
 	Size     int64
 	Duration uint32
+}
+
+type FileWr interface {
+	io.Reader
+	io.Writer
+	io.Seeker
+	io.Closer
+}
+
+var ExtraConfig struct {
+	CreateFileFn func(filename string) (FileWr,error)
+	AutoRecordFilter func(stream string) bool
 }
 
 func init() {
@@ -115,7 +128,7 @@ func run() {
 
 func onPublish(v interface{}) {
 	p := v.(*Stream)
-	if config.AutoRecord {
+	if config.AutoRecord || (ExtraConfig.AutoRecordFilter != nil && ExtraConfig.AutoRecordFilter(p.StreamPath)) {
 		SaveFlv(p.StreamPath, false)
 	}
 }
