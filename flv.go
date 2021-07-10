@@ -51,7 +51,6 @@ func SaveFlv(streamPath string, append bool) error {
 	p := Subscriber{
 		ID:               filePath,
 		Type:             "FlvRecord",
-		ByteStreamFormat: true,
 	}
 	var offsetTime uint32
 	if append {

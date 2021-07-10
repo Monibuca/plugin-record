@@ -29,14 +29,14 @@ func PublishFlvFile(streamPath string) error {
 				if t, timestamp, payload, err := codec.ReadFLVTag(file); err == nil {
 					switch t {
 					case codec.FLV_TAG_TYPE_AUDIO:
-						at.PushByteStream(AudioPack{Timestamp: timestamp, Payload: payload})
+						at.PushByteStream(timestamp,payload)
 					case codec.FLV_TAG_TYPE_VIDEO:
 						if timestamp != 0 {
 							if lastTime == 0 {
 								lastTime = timestamp
 							}
 						}
-						vt.PushByteStream(VideoPack{Timestamp: timestamp, Payload: payload})
+						vt.PushByteStream(timestamp, payload)
 						time.Sleep(time.Duration(timestamp-lastTime) * time.Millisecond)
 						lastTime = timestamp
 					}
