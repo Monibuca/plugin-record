@@ -126,8 +126,7 @@ func run() {
 	})
 }
 
-func onPublish(v interface{}) {
-	p := v.(*Stream)
+func onPublish(p *Stream) {
 	if config.AutoRecord || (ExtraConfig.AutoRecordFilter != nil && ExtraConfig.AutoRecordFilter(p.StreamPath)) {
 		SaveFlv(p.StreamPath, false)
 	}
