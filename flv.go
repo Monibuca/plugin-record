@@ -44,13 +44,13 @@ func SaveFlv(streamPath string, append bool) error {
 		if err != nil {
 			return err
 		}
-	}else {
-		file,err  =  ExtraConfig.CreateFileFn(filePath)
+	} else {
+		file, err = ExtraConfig.CreateFileFn(filePath)
 	}
 	// return avformat.WriteFLVTag(file, packet)
 	p := Subscriber{
-		ID:               filePath,
-		Type:             "FlvRecord",
+		ID:   filePath,
+		Type: "FlvRecord",
 	}
 	var offsetTime uint32
 	if append {
@@ -63,22 +63,22 @@ func SaveFlv(streamPath string, append bool) error {
 		recordings.Store(filePath, &p)
 		if err := p.Subscribe(streamPath); err == nil {
 			vt, at := p.WaitVideoTrack(), p.WaitAudioTrack()
-			p.OnAudio = func(audio AudioPack) {
+			p.OnAudio = func(ts uint32, audio *AudioPack) {
 				if !append && at.CodecID == 10 { //AAC格式需要发送AAC头
 					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, 0, at.ExtraData)
 				}
-				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, audio.Timestamp+offsetTime, audio.Payload)
-				p.OnAudio = func(audio AudioPack) {
-					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, audio.Timestamp+offsetTime, audio.Payload)
+				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, ts+offsetTime, audio.Payload)
+				p.OnAudio = func(ts uint32,audio *AudioPack) {
+					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_AUDIO, ts+offsetTime, audio.Payload)
 				}
 			}
-			p.OnVideo = func(video VideoPack) {
+			p.OnVideo = func(ts uint32, video *VideoPack) {
 				if !append {
 					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, 0, vt.ExtraData.Payload)
 				}
-				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, video.Timestamp+offsetTime, video.Payload)
-				p.OnVideo = func(video VideoPack) {
-					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, video.Timestamp+offsetTime, video.Payload)
+				codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, ts+offsetTime, video.Payload)
+				p.OnVideo = func(ts uint32, video *VideoPack) {
+					codec.WriteFLVTag(file, codec.FLV_TAG_TYPE_VIDEO, ts+offsetTime, video.Payload)
 				}
 			}
 			go func() {
