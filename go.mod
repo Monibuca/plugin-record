@@ -5,5 +5,4 @@ go 1.13
 require (
 	github.com/Monibuca/engine/v3 v3.3.0
 	github.com/Monibuca/utils/v3 v3.0.2
-	github.com/pion/rtp v1.7.1 // indirect
 )
