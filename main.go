@@ -39,16 +39,16 @@ var ExtraConfig struct {
 }
 
 func init() {
-	InstallPlugin(&PluginConfig{
+	pc := PluginConfig{
 		Name:   "Record",
 		Config: &config,
-		Run:    run,
 		HotConfig: map[string]func(interface{}){
 			"AutoRecord": func(v interface{}) {
 				config.AutoRecord = v.(bool)
 			},
 		},
-	})
+	}
+	pc.Install(run)
 }
 func run() {
 	go AddHook(HOOK_PUBLISH, onPublish)
