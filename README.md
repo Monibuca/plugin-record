@@ -4,12 +4,17 @@ record plugin for monibuca
 实现了录制Flv文件的功能，并且支持再次使用录制好的Flv文件作为发布者进行发布。
 
 ## 默认配置
-配置中的Path 表示要保存的Flv文件的根路径，可以使用相对路径或者绝对路径
+
 ```toml
 [Record]
-Path = ""
-AutoRecord =false
+Path = "resource/[appName]/[streamName]"
+AutoRecord = false
+AppendFlv  = false
 ```
+
+- `Path` 表示要保存的Flv文件的根路径，可以使用相对路径或者绝对路径，默认为流路径
+- `AutoRecord` 是否自动开启录制
+- `AppendFlv` 当存在历史录制文件时，是否追加写入，如果不存在历史录制文件，则总是新创建文件
 
 ## API
 
