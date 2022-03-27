@@ -14,6 +14,7 @@ import (
 	"m7s.live/engine/v4/config"
 	"m7s.live/engine/v4/util"
 	"m7s.live/plugin/record/v4/flv"
+	"m7s.live/plugin/record/v4/mp4"
 )
 
 type RecordConfig struct {
@@ -52,8 +53,19 @@ func (conf *RecordConfig) OnEvent(event any) {
 		if conf.Flv.NeedRecord(v.Stream.Path) {
 			var recorder flv.Recorder
 			if file, err := conf.Flv.CreateFileFn(v.Stream.Path, recorder.Append); err == nil {
-				recorder.SetIO(file)
-				go plugin.SubscribeBlock(v.Stream.Path, &recorder)
+				go func() {
+					plugin.SubscribeBlock(v.Stream.Path, &recorder)
+					file.Close()
+				}()
+			}
+		}
+		if conf.Mp4.NeedRecord(v.Stream.Path) {
+			if file, err := conf.Mp4.CreateFileFn(v.Stream.Path, false); err == nil {
+				recorder := mp4.NewRecorder(file)
+				go func() {
+					plugin.SubscribeBlock(v.Stream.Path, recorder)
+					recorder.Close()
+				}()
 			}
 		}
 	}
@@ -100,6 +112,7 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	var recorder ISubscriber
 	var filePath string
 	var point unsafe.Pointer
+	var closer io.Closer
 	switch t {
 	case "":
 		t = "flv"
@@ -116,20 +129,31 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		recorder.SetIO(file)
+		closer = file
 	case "mp4":
 		recorderConf = &conf.Mp4
+		filePath = filepath.Join(recorderConf.Path, streamPath+".mp4")
+		file, err := recorderConf.CreateFileFn(filePath, false)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		mp4Recorder := mp4.NewRecorder(file)
+		recorder = mp4Recorder
+		point = unsafe.Pointer(mp4Recorder)
+		closer = mp4Recorder
 	case "hls":
 		recorderConf = &conf.Hls
 	}
 	if err := plugin.Subscribe(streamPath, recorder); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		
+		closer.Close()
 	} else {
 		conf.recordings.Store(uintptr(point), recorder)
 		go func() {
 			recorder.PlayBlock()
 			conf.recordings.Delete(uintptr(point))
+			closer.Close()
 		}()
 		w.Write([]byte(strconv.FormatUint(uint64(uintptr(point)), 10)))
 	}
