@@ -4,171 +4,165 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"os"
-	"path"
 	"path/filepath"
-	"strings"
+	"strconv"
 	"sync"
+	"unsafe"
 
-	. "github.com/Monibuca/engine/v3"
-	. "github.com/Monibuca/utils/v3"
+	. "m7s.live/engine/v4"
+	"m7s.live/engine/v4/codec"
+	"m7s.live/engine/v4/config"
+	"m7s.live/engine/v4/util"
+	"m7s.live/plugin/record/v4/flv"
 )
 
-var config struct {
-	Path        string
-	AutoRecord  bool
-}
-var recordings sync.Map
-
-type FlvFileInfo struct {
-	Path     string
-	Size     int64
-	Duration uint32
+type RecordConfig struct {
+	Subscriber
+	Flv        config.Record
+	Mp4        config.Record
+	Hls        config.Record
+	recordings sync.Map
 }
 
-type FileWr interface {
-	io.Reader
-	io.Writer
-	io.Seeker
-	io.Closer
+var recordConfig = &RecordConfig{
+	Flv: config.Record{
+		Path:          "./flv",
+		Ext:           ".flv",
+		GetDurationFn: getDuration,
+	},
+	Mp4: config.Record{
+		Path: "./mp4",
+		Ext:  ".mp4",
+	},
+	Hls: config.Record{
+		Path: "./hls",
+		Ext:  ".m3u8",
+	},
 }
 
-var ExtraConfig struct {
-	CreateFileFn func(filename string) (FileWr,error)
-	AutoRecordFilter func(stream string) bool
-}
+var plugin = InstallPlugin(recordConfig)
 
-func init() {
-	pc := PluginConfig{
-		Name:   "Record",
-		Config: &config,
-		HotConfig: map[string]func(interface{}){
-			"AutoRecord": func(v interface{}) {
-				config.AutoRecord = v.(bool)
-			},
-		},
+func (conf *RecordConfig) OnEvent(event any) {
+	switch v := event.(type) {
+	case FirstConfig, config.Config:
+		conf.Flv.Init()
+		conf.Mp4.Init()
+		conf.Hls.Init()
+	case SEpublish:
+		if conf.Flv.NeedRecord(v.Stream.Path) {
+			var recorder flv.Recorder
+			if file, err := conf.Flv.CreateFileFn(v.Stream.Path, recorder.Append); err == nil {
+				recorder.SetIO(file)
+				go plugin.SubscribeBlock(v.Stream.Path, &recorder)
+			}
+		}
 	}
-	pc.Install(run)
 }
-func run() {
-	go AddHook(HOOK_PUBLISH, onPublish)
-	os.MkdirAll(config.Path, 0755)
-	http.HandleFunc("/vod/", VodHandler)
-	http.HandleFunc("/api/record/flv/list", func(w http.ResponseWriter, r *http.Request) {
-		CORS(w, r)
-		if files, err := tree(config.Path, 0); err == nil {
+
+func (conf *RecordConfig) API_list(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	t := query.Get("type")
+	var recorder *config.Record
+	switch t {
+	case "", "flv":
+		recorder = &conf.Flv
+	case "mp4":
+		recorder = &conf.Mp4
+	case "hls":
+		recorder = &conf.Hls
+	}
+
+	if recorder != nil {
+		if files, err := recorder.Tree(recorder.Path, 0); err == nil {
 			var bytes []byte
 			if bytes, err = json.Marshal(files); err == nil {
 				w.Write(bytes)
 			} else {
-				w.Write([]byte("{\"err\":\"" + err.Error() + "\"}"))
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		} else {
-			w.Write([]byte("{\"err\":\"" + err.Error() + "\"}"))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-	})
-	http.HandleFunc("/api/record/flv", func(w http.ResponseWriter, r *http.Request) {
-		CORS(w, r)
-		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
-			if err := SaveFlv(streamPath, r.URL.Query().Get("append") == "true"); err != nil {
-				w.Write([]byte(err.Error()))
-			} else {
-				w.Write([]byte("success"))
-			}
-		} else {
-			w.Write([]byte("no streamPath"))
-		}
-	})
-
-	http.HandleFunc("/api/record/flv/stop", func(w http.ResponseWriter, r *http.Request) {
-		CORS(w, r)
-		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
-			filePath := filepath.Join(config.Path, streamPath+".flv")
-			if stream, ok := recordings.Load(filePath); ok {
-				output := stream.(*Subscriber)
-				output.Close()
-				w.Write([]byte("success"))
-			} else {
-				w.Write([]byte("no query stream"))
-			}
-		} else {
-			w.Write([]byte("no such stream"))
-		}
-	})
-	http.HandleFunc("/api/record/flv/play", func(w http.ResponseWriter, r *http.Request) {
-		CORS(w, r)
-		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
-			if err := PublishFlvFile(streamPath); err != nil {
-				w.Write([]byte(err.Error()))
-			} else {
-				w.Write([]byte("success"))
-			}
-		} else {
-			w.Write([]byte("no streamPath"))
-		}
-	})
-	http.HandleFunc("/api/record/flv/delete", func(w http.ResponseWriter, r *http.Request) {
-		CORS(w, r)
-		if streamPath := r.URL.Query().Get("streamPath"); streamPath != "" {
-			filePath := filepath.Join(config.Path, streamPath+".flv")
-			if Exist(filePath) {
-				if err := os.Remove(filePath); err != nil {
-					w.Write([]byte(err.Error()))
-				} else {
-					w.Write([]byte("success"))
-				}
-			} else {
-				w.Write([]byte("no such file"))
-			}
-		} else {
-			w.Write([]byte("no streamPath"))
-		}
-	})
-}
-
-func onPublish(p *Stream) {
-	if config.AutoRecord || (ExtraConfig.AutoRecordFilter != nil && ExtraConfig.AutoRecordFilter(p.StreamPath)) {
-		SaveFlv(p.StreamPath, false)
+	} else {
+		http.Error(w, "type not exist", http.StatusBadRequest)
 	}
 }
 
-func tree(dstPath string, level int) (files []*FlvFileInfo, err error) {
-	var dstF *os.File
-	dstF, err = os.Open(dstPath)
-	if err != nil {
+func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	streamPath := query.Get("streamPath")
+	if streamPath == "" {
+		http.Error(w, "no streamPath", http.StatusBadRequest)
 		return
 	}
-	defer dstF.Close()
-	fileInfo, err := dstF.Stat()
-	if err != nil {
-		return
-	}
-	if !fileInfo.IsDir() { //如果dstF是文件
-		if path.Ext(fileInfo.Name()) == ".flv" {
-			p := strings.TrimPrefix(dstPath, config.Path)
-			p = strings.ReplaceAll(p, "\\", "/")
-			files = append(files, &FlvFileInfo{
-				Path:     strings.TrimPrefix(p, "/"),
-				Size:     fileInfo.Size(),
-				Duration: getDuration(dstF),
-			})
-		}
-		return
-	} else { //如果dstF是文件夹
-		var dir []os.FileInfo
-		dir, err = dstF.Readdir(0) //获取文件夹下各个文件或文件夹的fileInfo
+	t := query.Get("type")
+	var recorderConf *config.Record
+	var recorder ISubscriber
+	var filePath string
+	var point unsafe.Pointer
+	switch t {
+	case "":
+		t = "flv"
+		fallthrough
+	case "flv":
+		recorderConf = &conf.Flv
+		var flvRecoder flv.Recorder
+		recorder = &flvRecoder
+		point = unsafe.Pointer(&flvRecoder)
+		filePath = filepath.Join(recorderConf.Path, streamPath+".flv")
+		flvRecoder.Append = query.Get("append") != "" && util.Exist(filePath)
+		file, err := recorderConf.CreateFileFn(filePath, flvRecoder.Append)
 		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		for _, fileInfo = range dir {
-			var _files []*FlvFileInfo
-			_files, err = tree(filepath.Join(dstPath, fileInfo.Name()), level+1)
-			if err != nil {
-				return
-			}
-			files = append(files, _files...)
-		}
+		recorder.SetIO(file)
+	case "mp4":
+		recorderConf = &conf.Mp4
+	case "hls":
+		recorderConf = &conf.Hls
+	}
+	if err := plugin.Subscribe(streamPath, recorder); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		
+	} else {
+		conf.recordings.Store(uintptr(point), recorder)
+		go func() {
+			recorder.PlayBlock()
+			conf.recordings.Delete(uintptr(point))
+		}()
+		w.Write([]byte(strconv.FormatUint(uint64(uintptr(point)), 10)))
+	}
+}
+
+func (conf *RecordConfig) API_stop(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	id := query.Get("id")
+	num, err := strconv.ParseInt(id, 10, 0)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if recorder, ok := conf.recordings.Load(uintptr(num)); ok {
+		recorder.(ISubscriber).Stop()
+		return
+	}
+	http.Error(w, err.Error(), http.StatusBadRequest)
+}
 
+func getDuration(file io.ReadSeeker) uint32 {
+	_, err := file.Seek(-4, io.SeekEnd)
+	if err == nil {
+		var tagSize uint32
+		if tagSize, err = util.ReadByteToUint32(file, true); err == nil {
+			_, err = file.Seek(-int64(tagSize)-4, io.SeekEnd)
+			if err == nil {
+				_, timestamp, _, err := codec.ReadFLVTag(file)
+				if err == nil {
+					return timestamp
+				}
+			}
+		}
+	}
+	return 0
 }
