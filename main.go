@@ -18,7 +18,7 @@ import (
 )
 
 type RecordConfig struct {
-	Subscriber
+	config.Subscribe
 	Flv        config.Record
 	Mp4        config.Record
 	Hls        config.Record
@@ -52,7 +52,7 @@ func (conf *RecordConfig) OnEvent(event any) {
 	case SEpublish:
 		if conf.Flv.NeedRecord(v.Stream.Path) {
 			var recorder flv.Recorder
-			if file, err := conf.Flv.CreateFileFn(v.Stream.Path, recorder.Append); err == nil {
+			if file, err := conf.Flv.CreateFileFn(v.Stream.Path+".flv", recorder.Append); err == nil {
 				go func() {
 					plugin.SubscribeBlock(v.Stream.Path, &recorder)
 					file.Close()
@@ -60,7 +60,7 @@ func (conf *RecordConfig) OnEvent(event any) {
 			}
 		}
 		if conf.Mp4.NeedRecord(v.Stream.Path) {
-			if file, err := conf.Mp4.CreateFileFn(v.Stream.Path, false); err == nil {
+			if file, err := conf.Mp4.CreateFileFn(v.Stream.Path+".mp4", false); err == nil {
 				recorder := mp4.NewRecorder(file)
 				go func() {
 					plugin.SubscribeBlock(v.Stream.Path, recorder)
