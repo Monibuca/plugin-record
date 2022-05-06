@@ -1,24 +1,47 @@
 # record插件
-record plugin for monibuca
 
-实现了录制Flv文件的功能，并且支持再次使用录制好的Flv文件作为发布者进行发布。
+对流进行录制的功能插件，提供Flv和fmp4格式的录制功能。
+## 配置
 
-## 默认配置
-配置中的Path 表示要保存的Flv文件的根路径，可以使用相对路径或者绝对路径
-```toml
-[Record]
-Path = ""
-AutoRecord =false
+- 配置中的path 表示要保存的文件的根路径，可以使用相对路径或者绝对路径
+- filter 代表要过滤的StreamPath正则表达式，如果不匹配，则表示不录制。为空代表不进行过滤
+```yaml
+record:
+  subscribe:
+      subaudio: true
+      subvideo: true
+      iframeonly: false
+      waittimeout: 10
+  flv:
+      ext: .flv
+      path: ./flv
+      autorecord: false
+      filter: ""
+  mp4:
+      ext: .mp4
+      path: ./mp4
+      autorecord: false
+      filter: ""
+  hls:
+      ext: .m3u8
+      path: ./hls
+      autorecord: false
+      filter: ""
 ```
 
 ## API
 
-- `/api/record/flv/list` 罗列所有录制的flv文件
-- `/api/record/flv?streamPath=live/rtc` 开始录制某个流
-- `/api/record/flv/stop?streamPath=live/rtc` 停止录制某个流
-- `/api/record/flv/play?streamPath=live/rtc` 将某个flv文件读取并发布成一个直播流
-- `/api/record/flv/delete?streamPath=live/rtc` 删除某个flv文件
+- `/record/api/list?type=flv` 罗列所有录制的flv文件
+- `/record/api/start?type=flv&streamPath=live/rtc` 开始录制某个流
+- `/record/api/stop?type=flv&streamPath=live/rtc` 停止录制某个流
 
+其中将type值改为mp4则录制成fmp4格式。
 ## 点播功能
 
-访问 http://[HOST]:[Gateway Port]/vod/live/rtc.flv 将会读取对应的flv文件
+访问格式：
+ [http/https]://[host]:[port]/record/[streamPath].[flv/mp4]
+
+例如：
+- `http://localhost:8080/record/live/test.flv` 将会读取对应的flv文件
+- `http://localhost:8080/record/live/test.mp4` 将会读取对应的fmp4文件
+
