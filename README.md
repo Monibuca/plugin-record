@@ -1,6 +1,17 @@
-# record插件
+# RECORD插件
 
 对流进行录制的功能插件，提供Flv和fmp4格式的录制功能。
+
+## 插件地址
+
+https://github.com/Monibuca/plugin-record
+
+## 插件引入
+```go
+import (
+    _ "m7s.live/plugin/record/v4"
+)
+```
 ## 配置
 
 - 配置中的path 表示要保存的文件的根路径，可以使用相对路径或者绝对路径
