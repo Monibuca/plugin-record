@@ -84,9 +84,9 @@ func (r *Recorder) OnEvent(event any) {
 		r.video.trackId = trackID
 		switch v.CodecID {
 		case codec.CodecID_H264:
-			newTrak.SetAVCDescriptor("avc1", [][]byte{v.DecoderConfiguration.Raw[0]}, [][]byte{v.DecoderConfiguration.Raw[1]})
+			newTrak.SetAVCDescriptor("avc1", [][]byte{v.DecoderConfiguration.Raw[0]}, [][]byte{v.DecoderConfiguration.Raw[1]}, true)
 		case codec.CodecID_H265:
-			newTrak.SetHEVCDescriptor("hev1", [][]byte{v.DecoderConfiguration.Raw[0]}, [][]byte{v.DecoderConfiguration.Raw[1]}, [][]byte{v.DecoderConfiguration.Raw[2]})
+			newTrak.SetHEVCDescriptor("hev1", [][]byte{v.DecoderConfiguration.Raw[0]}, [][]byte{v.DecoderConfiguration.Raw[1]}, [][]byte{v.DecoderConfiguration.Raw[2]}, true)
 		}
 		r.AddTrack(v)
 	case *track.Audio:
