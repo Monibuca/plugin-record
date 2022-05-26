@@ -1,6 +1,6 @@
 # RECORD插件
 
-对流进行录制的功能插件，提供Flv和fmp4格式的录制功能。
+对流进行录制的功能插件，提供Flv、fmp4、hls格式的录制功能。
 
 ## 插件地址
 
@@ -16,6 +16,8 @@ import (
 
 - 配置中的path 表示要保存的文件的根路径，可以使用相对路径或者绝对路径
 - filter 代表要过滤的StreamPath正则表达式，如果不匹配，则表示不录制。为空代表不进行过滤
+- fragment表示分片大小（秒），0代表不分片
+
 ```yaml
 record:
   subscribe:
@@ -28,16 +30,19 @@ record:
       path: ./flv
       autorecord: false
       filter: ""
+      fragment: 0
   mp4:
       ext: .mp4
       path: ./mp4
       autorecord: false
       filter: ""
+      fragment: 0
   hls:
       ext: .m3u8
       path: ./hls
       autorecord: false
       filter: ""
+      fragment: 0
 ```
 
 ## API

@@ -1,11 +1,14 @@
-package mp4
+package record
 
 import (
+	"path/filepath"
+	"strconv"
+	"time"
+
 	"github.com/edgeware/mp4ff/aac"
 	"github.com/edgeware/mp4ff/mp4"
 	. "m7s.live/engine/v4"
 	"m7s.live/engine/v4/codec"
-	"m7s.live/engine/v4/config"
 	"m7s.live/engine/v4/track"
 	"m7s.live/engine/v4/util"
 )
@@ -17,12 +20,26 @@ var defaultFtyp = mp4.NewFtyp("isom", 0x200, []string{
 type mediaContext struct {
 	trackId  uint32
 	fragment *mp4.Fragment
-	ts       uint32 // 起始时间戳
+	ts       uint32 // 每个小片段起始时间戳
+	abs      uint32 // 绝对起始时间戳
+	absSet   bool   // 是否设置过abs
 }
 
-func (m *mediaContext) push(recoder *Recorder, dt uint32, dur uint32, data []byte, flags uint32) {
+func (m *mediaContext) reset(recoder *MP4Recorder) {
+	if m.fragment != nil {
+		m.fragment.Encode(recoder)
+		m.fragment = nil
+		m.absSet = false
+	}
+}
+
+func (m *mediaContext) push(recoder *MP4Recorder, dt uint32, dur uint32, data []byte, flags uint32) {
+	if !m.absSet {
+		m.abs = dt
+		m.absSet = true
+	}
 	if m.fragment != nil && dt-m.ts > 5000 {
-		m.fragment.Encode(recoder.fp)
+		m.fragment.Encode(recoder)
 		m.fragment = nil
 	}
 	if m.fragment == nil {
@@ -32,7 +49,7 @@ func (m *mediaContext) push(recoder *Recorder, dt uint32, dur uint32, data []byt
 	}
 	m.fragment.AddFullSample(mp4.FullSample{
 		Data:       data,
-		DecodeTime: uint64(dt),
+		DecodeTime: uint64(dt - m.abs),
 		Sample: mp4.Sample{
 			Flags: flags,
 			Dur:   dur,
@@ -41,43 +58,43 @@ func (m *mediaContext) push(recoder *Recorder, dt uint32, dur uint32, data []byt
 	})
 }
 
-type Recorder struct {
-	Subscriber
-	fp               config.FileWr
+type MP4Recorder struct {
+	Recorder
 	*mp4.InitSegment `json:"-"`
 	video            mediaContext
 	audio            mediaContext
 	seqNumber        uint32
 }
 
-func NewRecorder(fp config.FileWr) *Recorder {
-	r := &Recorder{
-		fp:          fp,
+func NewMP4Recorder() *MP4Recorder {
+	r := &MP4Recorder{
 		InitSegment: mp4.CreateEmptyInit(),
 	}
 	r.InitSegment.Ftyp = defaultFtyp
+	r.Moov.Mvhd.NextTrackID = 1
 	return r
 }
 
-func (r *Recorder) Close() error {
-	if r.fp != nil {
+func (r *MP4Recorder) Close() error {
+	if r.Writer != nil {
 		if r.video.fragment != nil {
-			r.video.fragment.Encode(r.fp)
+			r.video.fragment.Encode(r.Writer)
 		}
 		if r.audio.fragment != nil {
-			r.audio.fragment.Encode(r.fp)
+			r.audio.fragment.Encode(r.Writer)
 		}
-		r.fp.Close()
+		r.Closer.Close()
 	}
 	return nil
 }
 
-func (r *Recorder) OnEvent(event any) {
+func (r *MP4Recorder) OnEvent(event any) {
+	r.Recorder.OnEvent(event)
 	switch v := event.(type) {
 	case *track.Video:
 		moov := r.Moov
-		trackID := uint32(len(moov.Traks) + 1)
-		moov.Mvhd.NextTrackID = trackID + 1
+		trackID := moov.Mvhd.NextTrackID
+		moov.Mvhd.NextTrackID++
 		newTrak := mp4.CreateEmptyTrak(trackID, 1000, "video", "chi")
 		moov.AddChild(newTrak)
 		moov.Mvex.AddChild(mp4.CreateTrex(trackID))
@@ -91,8 +108,8 @@ func (r *Recorder) OnEvent(event any) {
 		r.AddTrack(v)
 	case *track.Audio:
 		moov := r.Moov
-		trackID := uint32(len(moov.Traks) + 1)
-		moov.Mvhd.NextTrackID = trackID + 1
+		trackID := moov.Mvhd.NextTrackID
+		moov.Mvhd.NextTrackID++
 		newTrak := mp4.CreateEmptyTrak(trackID, 1000, "audio", "chi")
 		moov.AddChild(newTrak)
 		moov.Mvex.AddChild(mp4.CreateTrex(trackID))
@@ -121,31 +138,38 @@ func (r *Recorder) OnEvent(event any) {
 			stsd.AddChild(pcmu)
 		}
 		r.AddTrack(v)
+	case ISubscriber:
+		r.InitSegment.Ftyp.Encode(r)
+		r.InitSegment.Moov.Encode(r)
 	case *AudioFrame:
 		if r.audio.trackId != 0 {
-			if r.InitSegment != nil {
-				r.InitSegment.Ftyp.Encode(r.fp)
-				r.InitSegment.Moov.Encode(r.fp)
-				r.InitSegment = nil
-			}
-			r.audio.push(r, v.AbsTime-r.Audio.First.AbsTime, v.DeltaTime, util.ConcatBuffers(v.Raw), mp4.SyncSampleFlags)
+			r.audio.push(r, v.AbsTime, v.DeltaTime, util.ConcatBuffers(v.Raw), mp4.SyncSampleFlags)
 		}
 	case *VideoFrame:
+		if r.Fragment != 0 {
+			if r.newFile {
+				r.newFile = false
+				r.audio.reset(r)
+				r.video.reset(r)
+				if file, err := r.CreateFileFn(filepath.Join(r.Stream.Path, strconv.FormatInt(time.Now().Unix(), 10)+r.Ext), false); err == nil {
+					r.SetIO(file)
+					r.InitSegment = mp4.CreateEmptyInit()
+					r.InitSegment.Ftyp = defaultFtyp
+					r.Moov.Mvhd.NextTrackID = 1
+					r.OnEvent(r.Video.Track)
+					r.OnEvent(r.Audio.Track)
+					r.InitSegment.Ftyp.Encode(r)
+					r.InitSegment.Moov.Encode(r)
+					r.seqNumber = 0
+				}
+			}
+		}
 		if r.video.trackId != 0 {
 			flag := mp4.NonSyncSampleFlags
 			if v.IFrame {
 				flag = mp4.SyncSampleFlags
 			}
-			if r.InitSegment != nil {
-				r.InitSegment.Ftyp.Encode(r.fp)
-				r.InitSegment.Moov.Encode(r.fp)
-				r.InitSegment = nil
-			}
-			r.video.push(r, v.AbsTime-r.Video.First.AbsTime, v.DeltaTime, util.ConcatBuffers(v.AVCC)[5:], flag)
+			r.video.push(r, v.AbsTime, v.DeltaTime, util.ConcatBuffers(v.AVCC)[5:], flag)
 		}
-
-	default:
-		r.Subscriber.OnEvent(event)
 	}
-
 }

@@ -1,10 +1,7 @@
 package record
 
 import (
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -18,18 +15,15 @@ func ext(path string) string {
 }
 
 func (conf *RecordConfig) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	p := strings.TrimPrefix(r.RequestURI, "/record/")
+	p := strings.TrimPrefix(r.RequestURI, "/")
+	p = strings.TrimPrefix(p, "record/")
+	r.URL.Path = p
 	switch ext(p) {
 	case ".flv":
-		filePath := filepath.Join(conf.Flv.Path, p)
-		if file, err := os.Open(filePath); err == nil {
-			w.Header().Set("Transfer-Encoding", "chunked")
-			w.Header().Set("Content-Type", "video/x-flv")
-			io.Copy(w, file)
-		} else {
-			w.WriteHeader(404)
-		}
+		conf.Flv.ServeHTTP(w, r)
 	case ".mp4":
-	case ".m3u8":
+		conf.Mp4.ServeHTTP(w, r)
+	case ".m3u8", ".ts":
+		conf.Hls.ServeHTTP(w, r)
 	}
 }
