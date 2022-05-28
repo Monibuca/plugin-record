@@ -67,11 +67,10 @@ func (h *HLSRecorder) OnEvent(event any) {
 		if err != nil {
 			return
 		}
-		if h.Fragment != 0 {
-			if h.newFile {
-				h.newFile = false
-				h.createHlsTsSegmentFile()
-			}
+		if h.Fragment != 0 && h.newFile {
+			h.newFile = false
+			h.tsWriter.Close()
+			h.createHlsTsSegmentFile()
 		}
 		pes := &mpegts.MpegtsPESFrame{
 			Pid:                       0x101,
