@@ -100,7 +100,7 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t := query.Get("type")
-	var recorder ISubscriber
+	var sub ISubscriber
 	var filePath string
 	switch t {
 	case "":
@@ -109,24 +109,26 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	case "flv":
 		var flvRecoder FLVRecorder
 		flvRecoder.Record = &conf.Flv
-		recorder = &flvRecoder
+		sub = &flvRecoder
 		flvRecoder.append = query.Get("append") != "" && util.Exist(filePath)
 	case "mp4":
 		recorder := NewMP4Recorder()
 		recorder.Record = &conf.Mp4
+		sub = recorder
 	case "hls":
 		recorder := &HLSRecorder{}
 		recorder.Record = &conf.Hls
+		sub = recorder
 	default:
 		http.Error(w, "type not supported", http.StatusBadRequest)
 	}
-	if err := plugin.Subscribe(streamPath, recorder); err != nil {
+	if err := plugin.Subscribe(streamPath, sub); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	id := streamPath + "/" + t
-	recorder.GetIO().ID = id
-	conf.recordings.Store(id, recorder)
+	sub.GetIO().ID = id
+	conf.recordings.Store(id, sub)
 	w.Write([]byte(id))
 }
 
