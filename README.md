@@ -1,6 +1,6 @@
 # RECORD插件
 
-对流进行录制的功能插件，提供Flv、fmp4、hls格式的录制功能。
+对流进行录制的功能插件，提供Flv、fmp4、hls、裸流格式的录制功能。
 
 ## 插件地址
 
@@ -43,6 +43,12 @@ record:
       autorecord: false
       filter: ""
       fragment: 0
+  raw:
+      ext: .
+      path: ./raw
+      autorecord: false
+      filter: ""
+      fragment: 0
 ```
 
 ## API
@@ -55,7 +61,7 @@ record:
 ## 点播功能
 
 访问格式：
- [http/https]://[host]:[port]/record/[streamPath].[flv/mp4]
+ [http/https]://[host]:[port]/record/[streamPath].[flv|mp4|m3u8|h264|h265]
 
 例如：
 - `http://localhost:8080/record/live/test.flv` 将会读取对应的flv文件

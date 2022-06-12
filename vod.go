@@ -25,5 +25,7 @@ func (conf *RecordConfig) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		conf.Mp4.ServeHTTP(w, r)
 	case ".m3u8", ".ts":
 		conf.Hls.ServeHTTP(w, r)
+	case ".h264", ".h265":
+		conf.Raw.ServeHTTP(w, r)
 	}
 }

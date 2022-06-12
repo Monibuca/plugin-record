@@ -17,6 +17,7 @@ type RecordConfig struct {
 	Flv        Record
 	Mp4        Record
 	Hls        Record
+	Raw        Record
 	recordings sync.Map
 }
 
@@ -34,6 +35,10 @@ var recordConfig = &RecordConfig{
 		Path: "./hls",
 		Ext:  ".m3u8",
 	},
+	Raw :Record{
+		Path: "./raw",
+		Ext:  ".", // 默认h264扩展名为.h264,h265扩展名为.h265
+	},
 }
 
 var plugin = InstallPlugin(recordConfig)
@@ -44,6 +49,7 @@ func (conf *RecordConfig) OnEvent(event any) {
 		conf.Flv.Init()
 		conf.Mp4.Init()
 		conf.Hls.Init()
+		conf.Raw.Init()
 	case SEpublish:
 		if conf.Flv.NeedRecord(v.Stream.Path) {
 			var flv FLVRecorder
@@ -60,6 +66,11 @@ func (conf *RecordConfig) OnEvent(event any) {
 			hls.Record = &conf.Hls
 			plugin.Subscribe(v.Stream.Path, &hls)
 		}
+		if conf.Raw.NeedRecord(v.Stream.Path) {
+			var raw RawRecorder
+			raw.Record = &conf.Raw
+			plugin.Subscribe(v.Stream.Path, &raw)
+		}
 	}
 }
 
@@ -74,6 +85,8 @@ func (conf *RecordConfig) API_list(w http.ResponseWriter, r *http.Request) {
 		recorder = &conf.Mp4
 	case "hls":
 		recorder = &conf.Hls
+	case "raw":
+		recorder = &conf.Raw
 	}
 
 	if recorder != nil {
@@ -118,6 +131,11 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	case "hls":
 		recorder := &HLSRecorder{}
 		recorder.Record = &conf.Hls
+		sub = recorder
+	case "raw":
+		recorder := &RawRecorder{}
+		recorder.Record = &conf.Raw
+		recorder.append = query.Get("append") != "" && util.Exist(filePath)
 		sub = recorder
 	default:
 		http.Error(w, "type not supported", http.StatusBadRequest)
