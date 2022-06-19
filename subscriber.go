@@ -10,9 +10,9 @@ import (
 
 type Recorder struct {
 	Subscriber
-	*Record
-	newFile bool   // 创建了新的文件
-	append  bool   // 是否追加模式
+	*Record `json:"-"`
+	newFile bool // 创建了新的文件
+	append  bool // 是否追加模式
 }
 
 func (r *Recorder) OnEvent(event any) {
@@ -27,14 +27,14 @@ func (r *Recorder) OnEvent(event any) {
 		if file, err := r.CreateFileFn(filename, r.append); err == nil {
 			r.SetIO(file)
 			go func() {
-				r.PlayBlock()
+				r.PlayRaw()
 				recordConfig.recordings.Delete(r.ID)
 				r.Close()
 			}()
 		}
 	case *VideoFrame:
-		if ts := v.AbsTime; v.IFrame && int64(ts-r.Video.First.AbsTime) >= int64(r.Fragment*1000) {
-			r.Video.First.AbsTime = ts
+		if ts := v.AbsTime; v.IFrame && int64(ts-r.FirstAbsTS) >= int64(r.Fragment*1000) {
+			r.FirstAbsTS = ts
 			r.newFile = true
 		}
 	default:

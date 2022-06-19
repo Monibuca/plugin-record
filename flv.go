@@ -14,14 +14,31 @@ type FLVRecorder struct {
 }
 
 func (r *FLVRecorder) OnEvent(event any) {
-	r.Recorder.OnEvent(event)
 	switch v := event.(type) {
 	case ISubscriber:
+		filename := strconv.FormatInt(time.Now().Unix(), 10) + r.Ext
+		if r.Fragment == 0 {
+			filename = r.Stream.Path + r.Ext
+		} else {
+			filename = filepath.Join(r.Stream.Path, filename)
+		}
+		if file, err := r.CreateFileFn(filename, r.append); err == nil {
+			r.SetIO(file)
+			go func() {
+				r.PlayFLV()
+				recordConfig.recordings.Delete(r.ID)
+				r.Close()
+			}()
+		}
 		// 写入文件头
 		if !r.append {
 			r.Write(codec.FLVHeader)
 		}
-	case HaveFLV:
+	case FLVFrame:
+		if ts := r.Video.Frame.AbsTime; r.Video.Frame.IFrame && int64(ts-r.FirstAbsTS) >= int64(r.Fragment*1000) {
+			r.FirstAbsTS = ts
+			r.newFile = true
+		}
 		if r.Fragment != 0 && r.newFile {
 			r.newFile = false
 			r.Close()
@@ -29,18 +46,19 @@ func (r *FLVRecorder) OnEvent(event any) {
 				r.SetIO(file)
 				r.Write(codec.FLVHeader)
 				if r.Video.Track != nil {
-					flvTag := VideoDeConf(r.Video.Track.DecoderConfiguration).GetFLV()
-					flvTag.WriteTo(r)
+					var flvTag FLVFrame
+					append(flvTag, r.Video.Track.DecoderConfiguration.FLV...).WriteTo(r)
 				}
 				if r.Audio.Track != nil && r.Audio.Track.CodecID == codec.CodecID_AAC {
-					flvTag := AudioDeConf(r.Audio.Track.DecoderConfiguration).GetFLV()
-					flvTag.WriteTo(r)
+					var flvTag FLVFrame
+					append(flvTag, r.Audio.Track.DecoderConfiguration.FLV...).WriteTo(r)
 				}
 			}
 		}
-		flvTag := v.GetFLV()
-		if _, err := flvTag.WriteTo(r); err != nil {
+		if _, err := v.WriteTo(r); err != nil {
 			r.Stop()
 		}
+	default:
+		r.Subscriber.OnEvent(event)
 	}
 }

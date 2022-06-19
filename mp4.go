@@ -161,7 +161,7 @@ func (r *MP4Recorder) OnEvent(event any) {
 			if v.IFrame {
 				flag = mp4.SyncSampleFlags
 			}
-			r.video.push(r, v.AbsTime, v.DeltaTime, util.ConcatBuffers(v.AVCC)[5:], flag)
+			r.video.push(r, v.AbsTime - r.SkipTS, v.DeltaTime, util.ConcatBuffers(v.AVCC)[5:], flag)
 		}
 	}
 }
