@@ -45,6 +45,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 		if err = h.createHlsTsSegmentFile(); err != nil {
 			return
 		}
+		go h.Start()
 	case AudioDeConf:
 		h.asc, err = hls.DecodeAudioSpecificConfig(v.AVCC[0])
 	case *AudioFrame:
@@ -55,7 +56,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 			Pid:                       0x102,
 			IsKeyFrame:                false,
 			ContinuityCounter:         byte(h.audio_cc % 16),
-			ProgramClockReferenceBase: uint64(v.DTS),
+			ProgramClockReferenceBase: uint64(v.DTS - h.SkipTS*90),
 		}
 		//frame.ProgramClockReferenceBase = 0
 		if err = mpegts.WritePESPacket(h.tsWriter, pes, h.packet); err != nil {
@@ -63,20 +64,22 @@ func (h *HLSRecorder) OnEvent(event any) {
 		}
 		h.audio_cc = uint16(pes.ContinuityCounter)
 	case *VideoFrame:
-		h.packet, err = hls.VideoPacketToPES(v, h.Video.Track.DecoderConfiguration)
+		h.packet, err = hls.VideoPacketToPES(v, h.Video.Track.DecoderConfiguration, h.SkipTS)
 		if err != nil {
 			return
 		}
 		if h.Fragment != 0 && h.newFile {
 			h.newFile = false
 			h.tsWriter.Close()
-			h.createHlsTsSegmentFile()
+			if err = h.createHlsTsSegmentFile(); err != nil {
+				return
+			}
 		}
 		pes := &mpegts.MpegtsPESFrame{
 			Pid:                       0x101,
 			IsKeyFrame:                v.IFrame,
 			ContinuityCounter:         byte(h.video_cc % 16),
-			ProgramClockReferenceBase: uint64(v.DTS),
+			ProgramClockReferenceBase: uint64(v.DTS - h.SkipTS*90),
 		}
 		if err = mpegts.WritePESPacket(h.tsWriter, pes, h.packet); err != nil {
 			return

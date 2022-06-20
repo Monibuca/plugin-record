@@ -17,6 +17,8 @@ type RawRecorder struct {
 func (r *RawRecorder) OnEvent(event any) {
 	r.Recorder.OnEvent(event)
 	switch v := event.(type) {
+	case *RawRecorder:
+		go r.Start()
 	case *track.Video:
 		if r.Ext == "." {
 			if v.CodecID == codec.CodecID_H264 {

@@ -22,21 +22,28 @@ type RecordConfig struct {
 }
 
 var recordConfig = &RecordConfig{
+	Subscribe: config.Subscribe{
+		SubAudio:    true,
+		SubVideo:    true,
+		LiveMode:    false,
+		IFrameOnly:  false,
+		WaitTimeout: 10,
+	},
 	Flv: Record{
-		Path:          "./flv",
+		Path:          "record/flv",
 		Ext:           ".flv",
 		GetDurationFn: getDuration,
 	},
 	Mp4: Record{
-		Path: "./mp4",
+		Path: "record/mp4",
 		Ext:  ".mp4",
 	},
 	Hls: Record{
-		Path: "./hls",
+		Path: "record/hls",
 		Ext:  ".m3u8",
 	},
-	Raw :Record{
-		Path: "./raw",
+	Raw: Record{
+		Path: "record/raw",
 		Ext:  ".", // 默认h264扩展名为.h264,h265扩展名为.h265
 	},
 }

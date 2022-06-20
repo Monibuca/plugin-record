@@ -135,6 +135,7 @@ func (r *MP4Recorder) OnEvent(event any) {
 	case ISubscriber:
 		defaultFtyp.Encode(r)
 		r.Moov.Encode(r)
+		go r.Start()
 	case *AudioFrame:
 		if r.audio.trackId != 0 {
 			r.audio.push(r, v.AbsTime, v.DeltaTime, util.ConcatBuffers(v.Raw), mp4.SyncSampleFlags)

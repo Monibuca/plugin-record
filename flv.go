@@ -13,6 +13,12 @@ type FLVRecorder struct {
 	Recorder
 }
 
+func (r *FLVRecorder) Start() {
+	r.PlayFLV()
+	recordConfig.recordings.Delete(r.ID)
+	r.Close()
+}
+
 func (r *FLVRecorder) OnEvent(event any) {
 	switch v := event.(type) {
 	case ISubscriber:
@@ -24,18 +30,14 @@ func (r *FLVRecorder) OnEvent(event any) {
 		}
 		if file, err := r.CreateFileFn(filename, r.append); err == nil {
 			r.SetIO(file)
-			go func() {
-				r.PlayFLV()
-				recordConfig.recordings.Delete(r.ID)
-				r.Close()
-			}()
 		}
 		// 写入文件头
 		if !r.append {
 			r.Write(codec.FLVHeader)
 		}
+		go r.Start()
 	case FLVFrame:
-		if ts := r.Video.Frame.AbsTime; r.Video.Frame.IFrame && int64(ts-r.FirstAbsTS) >= int64(r.Fragment*1000) {
+		if ts := r.Video.Frame.AbsTime - r.SkipTS; r.Video.Frame.IFrame && int64(ts-r.FirstAbsTS) >= int64(r.Fragment*1000) {
 			r.FirstAbsTS = ts
 			r.newFile = true
 		}

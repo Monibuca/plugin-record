@@ -15,6 +15,12 @@ type Recorder struct {
 	append  bool // 是否追加模式
 }
 
+func (r *Recorder) Start() {
+	r.PlayRaw()
+	recordConfig.recordings.Delete(r.ID)
+	r.Close()
+}
+
 func (r *Recorder) OnEvent(event any) {
 	switch v := event.(type) {
 	case ISubscriber:
@@ -26,14 +32,9 @@ func (r *Recorder) OnEvent(event any) {
 		}
 		if file, err := r.CreateFileFn(filename, r.append); err == nil {
 			r.SetIO(file)
-			go func() {
-				r.PlayRaw()
-				recordConfig.recordings.Delete(r.ID)
-				r.Close()
-			}()
 		}
 	case *VideoFrame:
-		if ts := v.AbsTime; v.IFrame && int64(ts-r.FirstAbsTS) >= int64(r.Fragment*1000) {
+		if ts := v.AbsTime - r.SkipTS; v.IFrame && int64(ts-r.FirstAbsTS) >= int64(r.Fragment*1000) {
 			r.FirstAbsTS = ts
 			r.newFile = true
 		}
