@@ -30,8 +30,8 @@ type Record struct {
 	Fragment      int //分片大小（秒）0表示不分片
 	filterReg     *regexp.Regexp
 	fs            http.Handler
-	CreateFileFn  func(filename string, append bool) (FileWr, error) `yaml:"-"`
-	GetDurationFn func(file io.ReadSeeker) uint32                    `yaml:"-"`
+	CreateFileFn  func(filename string, append bool) (FileWr, error) `yaml:"-" json:"-"`
+	GetDurationFn func(file io.ReadSeeker) uint32                    `yaml:"-" json:"-"`
 }
 
 func (r *Record) ServeHTTP(w http.ResponseWriter, req *http.Request) {
