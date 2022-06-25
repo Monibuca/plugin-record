@@ -27,25 +27,25 @@ record:
       waittimeout: 10
   flv:
       ext: .flv
-      path: ./flv
+      path: record/flv
       autorecord: false
       filter: ""
       fragment: 0
   mp4:
       ext: .mp4
-      path: ./mp4
+      path: record/mp4
       autorecord: false
       filter: ""
       fragment: 0
   hls:
       ext: .m3u8
-      path: ./hls
+      path: record/hls
       autorecord: false
       filter: ""
       fragment: 0
   raw:
       ext: .
-      path: ./raw
+      path: record/raw
       autorecord: false
       filter: ""
       fragment: 0
