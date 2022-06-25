@@ -150,8 +150,12 @@ func (r *MP4Recorder) OnEvent(event any) {
 				r.video.absSet = false
 				r.InitSegment = mp4.CreateEmptyInit()
 				r.Moov.Mvhd.NextTrackID = 1
-				r.OnEvent(r.Video.Track)
-				r.OnEvent(r.Audio.Track)
+				if r.Video.Track != nil {
+					r.OnEvent(r.Video.Track)
+				}
+				if r.Audio.Track != nil {
+					r.OnEvent(r.Audio.Track)
+				}
 				defaultFtyp.Encode(r)
 				r.Moov.Encode(r)
 				r.seqNumber = 0
@@ -162,7 +166,7 @@ func (r *MP4Recorder) OnEvent(event any) {
 			if v.IFrame {
 				flag = mp4.SyncSampleFlags
 			}
-			r.video.push(r, v.AbsTime - r.SkipTS, v.DeltaTime, util.ConcatBuffers(v.AVCC)[5:], flag)
+			r.video.push(r, v.AbsTime-r.SkipTS, v.DeltaTime, util.ConcatBuffers(v.AVCC)[5:], flag)
 		}
 	}
 }
