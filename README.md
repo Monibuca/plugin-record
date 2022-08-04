@@ -53,6 +53,7 @@ record:
 
 ## API
 
+- `/record/api/list/recording` 罗列所有正在录制中的流的信息
 - `/record/api/list?type=flv` 罗列所有录制的flv文件
 - `/record/api/start?type=flv&streamPath=live/rtc` 开始录制某个流,返回一个字符串用于停止录制用的id
 - `/record/api/stop?id=xxx` 停止录制某个流

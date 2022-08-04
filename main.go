@@ -157,6 +157,17 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(id))
 }
 
+func (conf *RecordConfig) API_list_recording(w http.ResponseWriter, r *http.Request) {
+	var recordings []any
+	conf.recordings.Range(func(key, value any) bool {
+		recordings = append(recordings, value)
+		return true
+	})
+	if err := json.NewEncoder(w).Encode(recordings); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (conf *RecordConfig) API_stop(w http.ResponseWriter, r *http.Request) {
 	if recorder, ok := conf.recordings.Load(r.URL.Query().Get("id")); ok {
 		recorder.(ISubscriber).Stop()
