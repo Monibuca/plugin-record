@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
-
+	goutils "github.com/typa01/go-utils"
 	. "m7s.live/engine/v4"
 	"m7s.live/engine/v4/codec"
 	"m7s.live/engine/v4/config"
@@ -122,6 +122,7 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	t := query.Get("type")
 	var sub ISubscriber
 	var filePath string
+	var uuid string = goutils.GUID()
 	switch t {
 	case "":
 		t = "flv"
@@ -129,11 +130,13 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	case "flv":
 		var flvRecoder FLVRecorder
 		flvRecoder.Record = &conf.Flv
+		flvRecoder.Record.Ext = "."+uuid + ".flv"
 		sub = &flvRecoder
 		flvRecoder.append = query.Get("append") != "" && util.Exist(filePath)
 	case "mp4":
 		recorder := NewMP4Recorder()
 		recorder.Record = &conf.Mp4
+		recorder.Record.Ext = "."+uuid + ".MP4"
 		sub = recorder
 	case "hls":
 		recorder := &HLSRecorder{}
@@ -151,7 +154,8 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	id := streamPath + "/" + t
+	
+	id := streamPath + "." + uuid +"."+    t
 	sub.GetIO().ID = id
 	conf.recordings.Store(id, sub)
 	w.Write([]byte(id))
