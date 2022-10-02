@@ -79,10 +79,14 @@ func (r *Record) Tree(dstPath string, level int) (files []*VideoFileInfo, err er
 		if path.Ext(fileInfo.Name()) == r.Ext {
 			p := strings.TrimPrefix(dstPath, r.Path)
 			p = strings.ReplaceAll(p, "\\", "/")
+			var duration uint32
+			if r.GetDurationFn != nil {
+				duration = r.GetDurationFn(dstF)
+			}
 			files = append(files, &VideoFileInfo{
 				Path:     strings.TrimPrefix(p, "/"),
 				Size:     fileInfo.Size(),
-				Duration: r.GetDurationFn(dstF),
+				Duration: duration,
 			})
 		}
 		return

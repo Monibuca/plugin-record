@@ -32,7 +32,7 @@ var recordConfig = &RecordConfig{
 	Flv: Record{
 		Path:          "record/flv",
 		Ext:           ".flv",
-		GetDurationFn: getDuration,
+		GetDurationFn: getFLVDuration,
 	},
 	Mp4: Record{
 		Path: "record/mp4",
@@ -176,7 +176,7 @@ func (conf *RecordConfig) API_stop(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "no such recorder", http.StatusBadRequest)
 }
 
-func getDuration(file io.ReadSeeker) uint32 {
+func getFLVDuration(file io.ReadSeeker) uint32 {
 	_, err := file.Seek(-4, io.SeekEnd)
 	if err == nil {
 		var tagSize uint32
