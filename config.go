@@ -43,7 +43,7 @@ func (r *Record) NeedRecord(streamPath string) bool {
 }
 
 func (r *Record) Init() {
-	os.MkdirAll(r.Path, 0755)
+	os.MkdirAll(r.Path, 0766)
 	if r.Filter != "" {
 		r.filterReg = regexp.MustCompile(r.Filter)
 	}
@@ -56,10 +56,10 @@ func (r *Record) Init() {
 		} else {
 			flag = flag | os.O_TRUNC | os.O_WRONLY
 		}
-		if err = os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		if err = os.MkdirAll(filepath.Dir(filePath), 0766); err != nil {
 			return file, err
 		}
-		file, err = os.OpenFile(filePath, flag, 0755)
+		file, err = os.OpenFile(filePath, flag, 0766)
 		return
 	}
 }
