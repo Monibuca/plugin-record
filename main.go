@@ -80,13 +80,9 @@ func (conf *RecordConfig) OnEvent(event any) {
 		}
 	}
 }
-
-func (conf *RecordConfig) API_list(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	t := query.Get("type")
-	var recorder *Record
+func (conf *RecordConfig) getRecorderConfigByType(t string) (recorder *Record) {
 	switch t {
-	case "", "flv":
+	case "flv":
 		recorder = &conf.Flv
 	case "mp4":
 		recorder = &conf.Mp4
@@ -95,20 +91,35 @@ func (conf *RecordConfig) API_list(w http.ResponseWriter, r *http.Request) {
 	case "raw":
 		recorder = &conf.Raw
 	}
+	return
+}
 
-	if recorder != nil {
-		if files, err := recorder.Tree(recorder.Path, 0); err == nil {
-			var bytes []byte
-			if bytes, err = json.Marshal(files); err == nil {
-				w.Write(bytes)
-			} else {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+func (conf *RecordConfig) API_list(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	t := query.Get("type")
+	var files []*VideoFileInfo
+	var err error
+	recorder := conf.getRecorderConfigByType(t)
+	if recorder == nil {
+		for _, t = range []string{"flv", "mp4", "hls", "raw"} {
+			recorder = conf.getRecorderConfigByType(t)
+			var fs []*VideoFileInfo
+			if fs, err = recorder.Tree(recorder.Path, 0); err == nil {
+				files = append(files, fs...)
 			}
-		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	} else {
-		http.Error(w, "type not exist", http.StatusBadRequest)
+		files, err = recorder.Tree(recorder.Path, 0)
+	}
+
+	if err == nil {
+		var bytes []byte
+		if bytes, err = json.Marshal(files); err == nil {
+			w.Write(bytes)
+		}
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
