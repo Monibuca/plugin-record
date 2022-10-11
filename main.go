@@ -60,23 +60,18 @@ func (conf *RecordConfig) OnEvent(event any) {
 	case SEpublish:
 		if conf.Flv.NeedRecord(v.Stream.Path) {
 			var flv FLVRecorder
-			flv.Record = &conf.Flv
-			plugin.Subscribe(v.Stream.Path, &flv)
+			flv.Start(v.Stream.Path)
 		}
 		if conf.Mp4.NeedRecord(v.Stream.Path) {
-			mp4 := NewMP4Recorder()
-			mp4.Record = &conf.Mp4
-			plugin.Subscribe(v.Stream.Path, mp4)
+			NewMP4Recorder().Start(v.Stream.Path)
 		}
 		if conf.Hls.NeedRecord(v.Stream.Path) {
 			var hls HLSRecorder
-			hls.Record = &conf.Hls
-			plugin.Subscribe(v.Stream.Path, &hls)
+			hls.Start(v.Stream.Path)
 		}
 		if conf.Raw.NeedRecord(v.Stream.Path) {
 			var raw RawRecorder
-			raw.Record = &conf.Raw
-			plugin.Subscribe(v.Stream.Path, &raw)
+			raw.Start(v.Stream.Path)
 		}
 	}
 }
@@ -133,39 +128,33 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	t := query.Get("type")
 	var sub ISubscriber
 	var filePath string
+	var err error
 	switch t {
 	case "":
 		t = "flv"
 		fallthrough
 	case "flv":
 		var flvRecoder FLVRecorder
-		flvRecoder.Record = &conf.Flv
-		sub = &flvRecoder
 		flvRecoder.append = query.Get("append") != "" && util.Exist(filePath)
+		err = flvRecoder.Start(streamPath)
 	case "mp4":
-		recorder := NewMP4Recorder()
-		recorder.Record = &conf.Mp4
-		sub = recorder
+		err = NewMP4Recorder().Start(streamPath)
 	case "hls":
-		recorder := &HLSRecorder{}
-		recorder.Record = &conf.Hls
-		sub = recorder
+		var recorder HLSRecorder
+		err = recorder.Start(streamPath)
 	case "raw":
-		recorder := &RawRecorder{}
-		recorder.Record = &conf.Raw
+		var recorder RawRecorder
 		recorder.append = query.Get("append") != "" && util.Exist(filePath)
-		sub = recorder
+		err = recorder.Start(streamPath)
 	default:
 		http.Error(w, "type not supported", http.StatusBadRequest)
+		return
 	}
-	if err := plugin.Subscribe(streamPath, sub); err != nil {
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	id := streamPath + "/" + t
-	sub.GetIO().ID = id
-	conf.recordings.Store(id, sub)
-	w.Write([]byte(id))
+	w.Write([]byte(sub.GetIO().ID))
 }
 
 func (conf *RecordConfig) API_list_recording(w http.ResponseWriter, r *http.Request) {
@@ -182,6 +171,7 @@ func (conf *RecordConfig) API_list_recording(w http.ResponseWriter, r *http.Requ
 func (conf *RecordConfig) API_stop(w http.ResponseWriter, r *http.Request) {
 	if recorder, ok := conf.recordings.Load(r.URL.Query().Get("id")); ok {
 		recorder.(ISubscriber).Stop()
+		w.Write([]byte("ok"))
 		return
 	}
 	http.Error(w, "no such recorder", http.StatusBadRequest)

@@ -14,11 +14,17 @@ type RawRecorder struct {
 	Recorder
 }
 
+func (r *RawRecorder) Start(streamPath string) error {
+	r.Record = &recordConfig.Raw
+	r.ID = streamPath + "/raw"
+	return plugin.Subscribe(streamPath, r)
+}
+
 func (r *RawRecorder) OnEvent(event any) {
 	r.Recorder.OnEvent(event)
 	switch v := event.(type) {
 	case *RawRecorder:
-		go r.Start()
+		go r.start()
 	case *track.Video:
 		if r.Ext == "." {
 			if v.CodecID == codec.CodecID_H264 {

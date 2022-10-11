@@ -15,7 +15,8 @@ type Recorder struct {
 	append  bool // 是否追加模式
 }
 
-func (r *Recorder) Start() {
+func (r *Recorder) start() {
+	recordConfig.recordings.Store(r.ID, r)
 	r.PlayRaw()
 	recordConfig.recordings.Delete(r.ID)
 	r.Close()

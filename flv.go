@@ -13,7 +13,14 @@ type FLVRecorder struct {
 	Recorder
 }
 
-func (r *FLVRecorder) Start() {
+func (r *FLVRecorder) Start(streamPath string) (err error){
+	r.Record = &recordConfig.Flv
+	r.ID = streamPath + "/flv"
+	return plugin.Subscribe(streamPath, r)
+}
+
+func (r *FLVRecorder) start() {
+	recordConfig.recordings.Store(r.ID, r)
 	r.PlayFLV()
 	recordConfig.recordings.Delete(r.ID)
 	r.Close()
@@ -35,7 +42,7 @@ func (r *FLVRecorder) OnEvent(event any) {
 		if !r.append {
 			r.Write(codec.FLVHeader)
 		}
-		go r.Start()
+		go r.start()
 	case FLVFrame:
 		if ts := r.Video.Frame.AbsTime - r.SkipTS; r.Video.Frame.IFrame && int64(ts-r.FirstAbsTS) >= int64(r.Fragment*1000) {
 			r.FirstAbsTS = ts

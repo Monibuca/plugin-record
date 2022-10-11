@@ -22,6 +22,12 @@ type HLSRecorder struct {
 	tsWriter io.WriteCloser
 }
 
+func (h *HLSRecorder) Start(streamPath string) error {
+	h.Record = &recordConfig.Hls
+	h.ID = streamPath + "/hls"
+	return plugin.Subscribe(streamPath, h)
+}
+
 func (h *HLSRecorder) OnEvent(event any) {
 	var err error
 	defer func() {
@@ -45,7 +51,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 		if err = h.createHlsTsSegmentFile(); err != nil {
 			return
 		}
-		go h.Start()
+		go h.start()
 	case AudioDeConf:
 		h.asc, err = hls.DecodeAudioSpecificConfig(v.AVCC[0])
 	case *AudioFrame:

@@ -76,7 +76,7 @@ func (r *Record) Tree(dstPath string, level int) (files []*VideoFileInfo, err er
 		return
 	}
 	if !fileInfo.IsDir() { //如果dstF是文件
-		if path.Ext(fileInfo.Name()) == r.Ext {
+		if r.Ext == "." || path.Ext(fileInfo.Name()) == r.Ext {
 			p := strings.TrimPrefix(dstPath, r.Path)
 			p = strings.ReplaceAll(p, "\\", "/")
 			var duration uint32
