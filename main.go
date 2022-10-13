@@ -126,7 +126,7 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t := query.Get("type")
-	var sub ISubscriber
+	var id string
 	var filePath string
 	var err error
 	switch t {
@@ -137,15 +137,20 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 		var flvRecoder FLVRecorder
 		flvRecoder.append = query.Get("append") != "" && util.Exist(filePath)
 		err = flvRecoder.Start(streamPath)
+		id = flvRecoder.ID
 	case "mp4":
-		err = NewMP4Recorder().Start(streamPath)
+		recorder := NewMP4Recorder()
+		err = recorder.Start(streamPath)
+		id = recorder.ID
 	case "hls":
 		var recorder HLSRecorder
 		err = recorder.Start(streamPath)
+		id = recorder.ID
 	case "raw":
 		var recorder RawRecorder
 		recorder.append = query.Get("append") != "" && util.Exist(filePath)
 		err = recorder.Start(streamPath)
+		id = recorder.ID
 	default:
 		http.Error(w, "type not supported", http.StatusBadRequest)
 		return
@@ -154,7 +159,7 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write([]byte(sub.GetIO().ID))
+	w.Write([]byte(id))
 }
 
 func (conf *RecordConfig) API_list_recording(w http.ResponseWriter, r *http.Request) {
