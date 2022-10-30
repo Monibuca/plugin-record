@@ -13,16 +13,16 @@ type FLVRecorder struct {
 	Recorder
 }
 
-func (r *FLVRecorder) Start(streamPath string) (err error){
-	r.Record = &recordConfig.Flv
+func (r *FLVRecorder) Start(streamPath string) (err error) {
+	r.Record = &RecordPluginConfig.Flv
 	r.ID = streamPath + "/flv"
 	return plugin.Subscribe(streamPath, r)
 }
 
 func (r *FLVRecorder) start() {
-	recordConfig.recordings.Store(r.ID, r)
+	RecordPluginConfig.recordings.Store(r.ID, r)
 	r.PlayFLV()
-	recordConfig.recordings.Delete(r.ID)
+	RecordPluginConfig.recordings.Delete(r.ID)
 	r.Close()
 }
 

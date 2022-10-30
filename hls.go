@@ -23,7 +23,7 @@ type HLSRecorder struct {
 }
 
 func (h *HLSRecorder) Start(streamPath string) error {
-	h.Record = &recordConfig.Hls
+	h.Record = &RecordPluginConfig.Hls
 	h.ID = streamPath + "/hls"
 	return plugin.Subscribe(streamPath, h)
 }

@@ -68,7 +68,7 @@ func NewMP4Recorder() *MP4Recorder {
 }
 
 func (r *MP4Recorder) Start(streamPath string) (err error) {
-	r.Record = &recordConfig.Mp4
+	r.Record = &RecordPluginConfig.Mp4
 	r.ID = streamPath + "/mp4"
 	return plugin.Subscribe(streamPath, r)
 }

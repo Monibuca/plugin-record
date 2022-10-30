@@ -15,7 +15,7 @@ type RawRecorder struct {
 }
 
 func (r *RawRecorder) Start(streamPath string) error {
-	r.Record = &recordConfig.Raw
+	r.Record = &RecordPluginConfig.Raw
 	r.ID = streamPath + "/raw"
 	return plugin.Subscribe(streamPath, r)
 }

@@ -21,7 +21,7 @@ type RecordConfig struct {
 	recordings sync.Map
 }
 
-var recordConfig = &RecordConfig{
+var RecordPluginConfig = &RecordConfig{
 	Subscribe: config.Subscribe{
 		SubAudio:    true,
 		SubVideo:    true,
@@ -48,7 +48,7 @@ var recordConfig = &RecordConfig{
 	},
 }
 
-var plugin = InstallPlugin(recordConfig)
+var plugin = InstallPlugin(RecordPluginConfig)
 
 func (conf *RecordConfig) OnEvent(event any) {
 	switch v := event.(type) {

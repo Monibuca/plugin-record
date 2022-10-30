@@ -16,9 +16,9 @@ type Recorder struct {
 }
 
 func (r *Recorder) start() {
-	recordConfig.recordings.Store(r.ID, r)
+	RecordPluginConfig.recordings.Store(r.ID, r)
 	r.PlayRaw()
-	recordConfig.recordings.Delete(r.ID)
+	RecordPluginConfig.recordings.Delete(r.ID)
 	r.Close()
 }
 
