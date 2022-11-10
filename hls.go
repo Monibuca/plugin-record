@@ -59,7 +59,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 			return
 		}
 		pes := &mpegts.MpegtsPESFrame{
-			Pid:                       0x102,
+			Pid:                       mpegts.PID_AUDIO,
 			IsKeyFrame:                false,
 			ContinuityCounter:         byte(h.audio_cc % 16),
 			ProgramClockReferenceBase: uint64(v.DTS - h.SkipTS*90),
@@ -82,7 +82,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 			}
 		}
 		pes := &mpegts.MpegtsPESFrame{
-			Pid:                       0x101,
+			Pid:                       mpegts.PID_VIDEO,
 			IsKeyFrame:                v.IFrame,
 			ContinuityCounter:         byte(h.video_cc % 16),
 			ProgramClockReferenceBase: uint64(v.DTS - h.SkipTS*90),
@@ -113,8 +113,11 @@ func (h *HLSRecorder) createHlsTsSegmentFile() (err error) {
 	if err = mpegts.WriteDefaultPATPacket(fw); err != nil {
 		return err
 	}
-	if err = mpegts.WriteDefaultPMTPacket(fw); err != nil {
-		return err
+	
+	if h.TrackPlayer.Video.Track.CodecID == codec.CodecID_H264 {
+		fw.Write(mpegts.H264PMTPacket)
+	} else {
+		fw.Write(mpegts.H265PMTPacket)
 	}
 	return err
 }
