@@ -13,10 +13,6 @@ import (
 	"m7s.live/engine/v4/util"
 )
 
-var defaultFtyp = mp4.NewFtyp("isom", 0x200, []string{
-	"isom", "iso2", "avc1", "mp41",
-})
-
 type mediaContext struct {
 	trackId  uint32
 	fragment *mp4.Fragment
@@ -57,6 +53,7 @@ type MP4Recorder struct {
 	video            mediaContext
 	audio            mediaContext
 	seqNumber        uint32
+	ftyp             *mp4.FtypBox
 }
 
 func NewMP4Recorder() *MP4Recorder {
@@ -101,9 +98,15 @@ func (r *MP4Recorder) OnEvent(event any) {
 		r.video.trackId = trackID
 		switch v.CodecID {
 		case codec.CodecID_H264:
+			r.ftyp = mp4.NewFtyp("isom", 0x200, []string{
+				"isom", "iso2", "avc1", "mp41",
+			})
 			newTrak.SetAVCDescriptor("avc1", v.DecoderConfiguration.Raw[0:1], v.DecoderConfiguration.Raw[1:2], true)
 		case codec.CodecID_H265:
-			newTrak.SetHEVCDescriptor("hev1", v.DecoderConfiguration.Raw[0:1], v.DecoderConfiguration.Raw[1:2], v.DecoderConfiguration.Raw[2:3], true)
+			r.ftyp = mp4.NewFtyp("isom", 0x200, []string{
+				"isom", "iso2", "hvc1", "mp41",
+			})
+			newTrak.SetHEVCDescriptor("hvc1", v.DecoderConfiguration.Raw[0:1], v.DecoderConfiguration.Raw[1:2], v.DecoderConfiguration.Raw[2:3], true)
 		}
 		r.AddTrack(v)
 	case *track.Audio:
@@ -139,7 +142,7 @@ func (r *MP4Recorder) OnEvent(event any) {
 		}
 		r.AddTrack(v)
 	case ISubscriber:
-		defaultFtyp.Encode(r)
+		r.ftyp.Encode(r)
 		r.Moov.Encode(r)
 		go r.start()
 	case *AudioFrame:
@@ -162,7 +165,7 @@ func (r *MP4Recorder) OnEvent(event any) {
 				if r.Audio.Track != nil {
 					r.OnEvent(r.Audio.Track)
 				}
-				defaultFtyp.Encode(r)
+				r.ftyp.Encode(r)
 				r.Moov.Encode(r)
 				r.seqNumber = 0
 			}

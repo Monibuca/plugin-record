@@ -15,7 +15,7 @@ import (
 
 type HLSRecorder struct {
 	playlist           hls.Playlist
-	asc                codec.AudioSpecificConfig
+	asc                *codec.AudioSpecificConfig
 	video_cc, audio_cc uint16
 	packet             mpegts.MpegTsPESPacket
 	Recorder
@@ -113,11 +113,14 @@ func (h *HLSRecorder) createHlsTsSegmentFile() (err error) {
 	if err = mpegts.WriteDefaultPATPacket(fw); err != nil {
 		return err
 	}
-	
-	if h.TrackPlayer.Video.Track.CodecID == codec.CodecID_H264 {
-		fw.Write(mpegts.H264PMTPacket)
-	} else {
-		fw.Write(mpegts.H265PMTPacket)
+	var vcodec codec.VideoCodecID = 0
+	var acodec codec.AudioCodecID = 0
+	if h.Video.Track != nil {
+		vcodec = h.Video.Track.CodecID
 	}
+	if h.Audio.Track != nil {
+		acodec = h.Audio.Track.CodecID
+	}
+	mpegts.WritePMTPacket(fw, vcodec, acodec)
 	return err
 }
