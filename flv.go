@@ -55,12 +55,12 @@ func (r *FLVRecorder) OnEvent(event any) {
 				r.SetIO(file)
 				r.Write(codec.FLVHeader)
 				if r.Video.Track != nil {
-					var flvTag FLVFrame
-					append(flvTag, r.Video.Track.DecoderConfiguration.FLV...).WriteTo(r)
+					dcflv := codec.VideoAVCC2FLV(r.Video.Track.DecoderConfiguration.AVCC, 0)
+					dcflv.WriteTo(r)
 				}
 				if r.Audio.Track != nil && r.Audio.Track.CodecID == codec.CodecID_AAC {
-					var flvTag FLVFrame
-					append(flvTag, r.Audio.Track.DecoderConfiguration.FLV...).WriteTo(r)
+					dcflv := codec.AudioAVCC2FLV(r.Audio.Track.Value.AVCC, 0)
+					dcflv.WriteTo(r)
 				}
 			}
 		}
