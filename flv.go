@@ -16,6 +16,9 @@ type FLVRecorder struct {
 func (r *FLVRecorder) Start(streamPath string) (err error) {
 	r.Record = &RecordPluginConfig.Flv
 	r.ID = streamPath + "/flv"
+	if _, ok := RecordPluginConfig.recordings.Load(r.ID); ok {
+		return ErrRecordExist
+	}
 	return plugin.Subscribe(streamPath, r)
 }
 

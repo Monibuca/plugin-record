@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"sync"
@@ -20,7 +21,7 @@ type RecordConfig struct {
 	Raw        Record
 	recordings sync.Map
 }
-
+var ErrRecordExist = errors.New("recorder exist")
 var RecordPluginConfig = &RecordConfig{
 	Subscribe: config.Subscribe{
 		SubAudio:    true,

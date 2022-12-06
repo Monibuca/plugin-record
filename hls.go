@@ -25,6 +25,9 @@ type HLSRecorder struct {
 func (h *HLSRecorder) Start(streamPath string) error {
 	h.Record = &RecordPluginConfig.Hls
 	h.ID = streamPath + "/hls"
+	if _, ok := RecordPluginConfig.recordings.Load(h.ID); ok {
+		return ErrRecordExist
+	}
 	return plugin.Subscribe(streamPath, h)
 }
 

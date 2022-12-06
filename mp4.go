@@ -67,6 +67,9 @@ func NewMP4Recorder() *MP4Recorder {
 func (r *MP4Recorder) Start(streamPath string) (err error) {
 	r.Record = &RecordPluginConfig.Mp4
 	r.ID = streamPath + "/mp4"
+	if _, ok := RecordPluginConfig.recordings.Load(r.ID); ok {
+		return ErrRecordExist
+	}
 	return plugin.Subscribe(streamPath, r)
 }
 
@@ -142,9 +145,11 @@ func (r *MP4Recorder) OnEvent(event any) {
 		}
 		r.AddTrack(v)
 	case ISubscriber:
-		r.ftyp.Encode(r)
-		r.Moov.Encode(r)
-		go r.start()
+		if r.ftyp != nil {
+			r.ftyp.Encode(r)
+			r.Moov.Encode(r)
+			go r.start()
+		}
 	case *AudioFrame:
 		if r.audio.trackId != 0 {
 			r.audio.push(r, v.AbsTime, v.DeltaTime, util.ConcatBuffers(v.Raw), mp4.SyncSampleFlags)
