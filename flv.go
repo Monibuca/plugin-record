@@ -47,8 +47,8 @@ func (r *FLVRecorder) OnEvent(event any) {
 		}
 		go r.start()
 	case FLVFrame:
-		if ts := r.Video.Frame.AbsTime - r.SkipTS; r.Video.Frame.IFrame && int64(ts-r.FirstAbsTS) >= int64(r.Fragment*1000) {
-			r.FirstAbsTS = ts
+		if ts := r.Video.Frame.AbsTime - r.SkipTS; r.Video.Frame.IFrame && int64(ts) >= int64(r.Fragment*1000) {
+			r.SkipTS = r.Video.Frame.AbsTime
 			r.newFile = true
 		}
 		if r.Fragment != 0 && r.newFile {
@@ -65,6 +65,9 @@ func (r *FLVRecorder) OnEvent(event any) {
 					dcflv := codec.AudioAVCC2FLV(r.Audio.Track.Value.AVCC, 0)
 					dcflv.WriteTo(r)
 				}
+				flv := codec.VideoAVCC2FLV(r.Video.Frame.AVCC, 0)
+				flv.WriteTo(r)
+				return
 			}
 		}
 		if _, err := v.WriteTo(r); err != nil {
