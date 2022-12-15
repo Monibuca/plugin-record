@@ -16,7 +16,7 @@ import (
 type HLSRecorder struct {
 	playlist           hls.Playlist
 	asc                *codec.AudioSpecificConfig
-	video_cc, audio_cc uint16
+	video_cc, audio_cc byte
 	packet             mpegts.MpegTsPESPacket
 	Recorder
 	tsWriter io.WriteCloser
@@ -64,14 +64,14 @@ func (h *HLSRecorder) OnEvent(event any) {
 		pes := &mpegts.MpegtsPESFrame{
 			Pid:                       mpegts.PID_AUDIO,
 			IsKeyFrame:                false,
-			ContinuityCounter:         byte(h.audio_cc % 16),
+			ContinuityCounter:         h.audio_cc,
 			ProgramClockReferenceBase: uint64(v.DTS - h.SkipTS*90),
 		}
 		//frame.ProgramClockReferenceBase = 0
 		if err = mpegts.WritePESPacket(h.tsWriter, pes, h.packet); err != nil {
 			return
 		}
-		h.audio_cc = uint16(pes.ContinuityCounter)
+		h.audio_cc = pes.ContinuityCounter
 	case *VideoFrame:
 		h.packet, err = hls.VideoPacketToPES(v, h.Video.Track.DecoderConfiguration, h.SkipTS)
 		if err != nil {
@@ -87,13 +87,13 @@ func (h *HLSRecorder) OnEvent(event any) {
 		pes := &mpegts.MpegtsPESFrame{
 			Pid:                       mpegts.PID_VIDEO,
 			IsKeyFrame:                v.IFrame,
-			ContinuityCounter:         byte(h.video_cc % 16),
+			ContinuityCounter:         h.video_cc,
 			ProgramClockReferenceBase: uint64(v.DTS - h.SkipTS*90),
 		}
 		if err = mpegts.WritePESPacket(h.tsWriter, pes, h.packet); err != nil {
 			return
 		}
-		h.video_cc = uint16(pes.ContinuityCounter)
+		h.video_cc = pes.ContinuityCounter
 	}
 
 }

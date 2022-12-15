@@ -17,17 +17,10 @@ type mediaContext struct {
 	trackId  uint32
 	fragment *mp4.Fragment
 	ts       uint32 // 每个小片段起始时间戳
-	abs      uint32 // 绝对起始时间戳
-	absSet   bool   // 是否设置过abs
 }
 
 func (m *mediaContext) push(recoder *MP4Recorder, dt uint32, dur uint32, data []byte, flags uint32) {
-	if !m.absSet {
-		m.abs = dt
-		m.absSet = true
-	}
-	dt -= m.abs
-	if m.fragment != nil && dt-m.ts > 5000 {
+	if m.fragment != nil && dt-m.ts > 1000 {
 		m.fragment.Encode(recoder)
 		m.fragment = nil
 	}
@@ -90,6 +83,24 @@ func (r *MP4Recorder) Close() error {
 
 func (r *MP4Recorder) OnEvent(event any) {
 	r.Recorder.OnEvent(event)
+	if r.newFile {
+		r.newFile = false
+		r.Close()
+		if file, err := r.CreateFileFn(filepath.Join(r.Stream.Path, strconv.FormatInt(time.Now().Unix(), 10)+r.Ext), false); err == nil {
+			r.SetIO(file)
+			r.InitSegment = mp4.CreateEmptyInit()
+			r.Moov.Mvhd.NextTrackID = 1
+			if r.Video.Track != nil {
+				r.OnEvent(r.Video.Track)
+			}
+			if r.Audio.Track != nil {
+				r.OnEvent(r.Audio.Track)
+			}
+			r.ftyp.Encode(r)
+			r.Moov.Encode(r)
+			r.seqNumber = 0
+		}
+	}
 	switch v := event.(type) {
 	case *track.Video:
 		moov := r.Moov
@@ -152,29 +163,9 @@ func (r *MP4Recorder) OnEvent(event any) {
 		}
 	case *AudioFrame:
 		if r.audio.trackId != 0 {
-			r.audio.push(r, v.AbsTime, v.DeltaTime, util.ConcatBuffers(v.Raw), mp4.SyncSampleFlags)
+			r.audio.push(r, v.AbsTime-r.SkipTS, v.DeltaTime, util.ConcatBuffers(v.Raw), mp4.SyncSampleFlags)
 		}
 	case *VideoFrame:
-		if r.Fragment != 0 && r.newFile {
-			r.newFile = false
-			r.Close()
-			if file, err := r.CreateFileFn(filepath.Join(r.Stream.Path, strconv.FormatInt(time.Now().Unix(), 10)+r.Ext), false); err == nil {
-				r.SetIO(file)
-				r.audio.absSet = false
-				r.video.absSet = false
-				r.InitSegment = mp4.CreateEmptyInit()
-				r.Moov.Mvhd.NextTrackID = 1
-				if r.Video.Track != nil {
-					r.OnEvent(r.Video.Track)
-				}
-				if r.Audio.Track != nil {
-					r.OnEvent(r.Audio.Track)
-				}
-				r.ftyp.Encode(r)
-				r.Moov.Encode(r)
-				r.seqNumber = 0
-			}
-		}
 		if r.video.trackId != 0 {
 			flag := mp4.NonSyncSampleFlags
 			if v.IFrame {

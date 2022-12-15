@@ -22,6 +22,13 @@ func (r *Recorder) start() {
 	r.Close()
 }
 
+func (r *Recorder) cut(absTime uint32) {
+	if ts := absTime - r.SkipTS; int64(ts) >= int64(r.Fragment*1000) {
+		r.SkipTS = absTime
+		r.newFile = true
+	}
+}
+
 func (r *Recorder) OnEvent(event any) {
 	switch v := event.(type) {
 	case ISubscriber:
@@ -34,10 +41,14 @@ func (r *Recorder) OnEvent(event any) {
 		if file, err := r.CreateFileFn(filename, r.append); err == nil {
 			r.SetIO(file)
 		}
+	case *AudioFrame:
+		// 纯音频流的情况下需要切割文件
+		if r.Fragment > 0 && r.Video.Track == nil {
+			r.cut(v.AbsTime)
+		}
 	case *VideoFrame:
-		if ts := v.AbsTime - r.SkipTS; v.IFrame && int64(ts-r.FirstAbsTS) >= int64(r.Fragment*1000) {
-			r.FirstAbsTS = ts
-			r.newFile = true
+		if r.Fragment > 0 && v.IFrame {
+			r.cut(v.AbsTime)
 		}
 	default:
 		r.Subscriber.OnEvent(event)
