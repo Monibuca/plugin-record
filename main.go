@@ -1,6 +1,7 @@
 package record
 
 import (
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,6 +15,7 @@ import (
 )
 
 type RecordConfig struct {
+	DefaultYaml
 	config.Subscribe
 	Flv        Record
 	Mp4        Record
@@ -21,15 +23,12 @@ type RecordConfig struct {
 	Raw        Record
 	recordings sync.Map
 }
+
+//go:embed default.yaml
+var defaultYaml DefaultYaml
 var ErrRecordExist = errors.New("recorder exist")
 var RecordPluginConfig = &RecordConfig{
-	Subscribe: config.Subscribe{
-		SubAudio:    true,
-		SubVideo:    true,
-		LiveMode:    false,
-		IFrameOnly:  false,
-		WaitTimeout: 10,
-	},
+	DefaultYaml: defaultYaml,
 	Flv: Record{
 		Path:          "record/flv",
 		Ext:           ".flv",
