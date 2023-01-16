@@ -53,6 +53,7 @@ func NewMP4Recorder() *MP4Recorder {
 	r := &MP4Recorder{
 		InitSegment: mp4.CreateEmptyInit(),
 	}
+	r.IsInternal = true
 	r.Moov.Mvhd.NextTrackID = 1
 	return r
 }

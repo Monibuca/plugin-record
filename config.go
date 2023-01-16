@@ -54,7 +54,7 @@ func (r *Record) Init() {
 		if append {
 			flag = flag | os.O_RDWR | os.O_APPEND
 		} else {
-			flag = flag | os.O_TRUNC | os.O_WRONLY
+			flag = flag | os.O_RDWR | os.O_TRUNC
 		}
 		if err = os.MkdirAll(filepath.Dir(filePath), 0766); err != nil {
 			return file, err

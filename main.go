@@ -60,6 +60,7 @@ func (conf *RecordConfig) OnEvent(event any) {
 	case SEpublish:
 		if conf.Flv.NeedRecord(v.Stream.Path) {
 			var flv FLVRecorder
+			flv.IsInternal = true
 			flv.Start(v.Stream.Path)
 		}
 		if conf.Mp4.NeedRecord(v.Stream.Path) {
@@ -67,10 +68,12 @@ func (conf *RecordConfig) OnEvent(event any) {
 		}
 		if conf.Hls.NeedRecord(v.Stream.Path) {
 			var hls HLSRecorder
+			hls.IsInternal = true
 			hls.Start(v.Stream.Path)
 		}
 		if conf.Raw.NeedRecord(v.Stream.Path) {
 			var raw RawRecorder
+			raw.IsInternal = true
 			raw.Start(v.Stream.Path)
 		}
 	}
@@ -135,19 +138,23 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 		fallthrough
 	case "flv":
 		var flvRecoder FLVRecorder
+		flvRecoder.IsInternal = true
 		flvRecoder.append = query.Get("append") != "" && util.Exist(filePath)
 		err = flvRecoder.Start(streamPath)
 		id = flvRecoder.ID
 	case "mp4":
 		recorder := NewMP4Recorder()
+		recorder.IsInternal = true
 		err = recorder.Start(streamPath)
 		id = recorder.ID
 	case "hls":
 		var recorder HLSRecorder
+		recorder.IsInternal = true
 		err = recorder.Start(streamPath)
 		id = recorder.ID
 	case "raw":
 		var recorder RawRecorder
+		recorder.IsInternal = true
 		recorder.append = query.Get("append") != "" && util.Exist(filePath)
 		err = recorder.Start(streamPath)
 		id = recorder.ID
