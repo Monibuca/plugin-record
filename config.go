@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"m7s.live/engine/v4"
 )
 
 type FileWr interface {
@@ -32,6 +34,7 @@ type Record struct {
 	fs            http.Handler
 	CreateFileFn  func(filename string, append bool) (FileWr, error) `yaml:"-" json:"-"`
 	GetDurationFn func(file io.ReadSeeker) uint32                    `yaml:"-" json:"-"`
+	recording     map[string]engine.ISubscriber
 }
 
 func (r *Record) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -39,10 +42,14 @@ func (r *Record) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Record) NeedRecord(streamPath string) bool {
+	if _, ok := r.recording[streamPath]; ok {
+		return false
+	}
 	return r.AutoRecord && (r.filterReg == nil || r.filterReg.MatchString(streamPath))
 }
 
 func (r *Record) Init() {
+	r.recording = make(map[string]engine.ISubscriber)
 	os.MkdirAll(r.Path, 0766)
 	if r.Filter != "" {
 		r.filterReg = regexp.MustCompile(r.Filter)
