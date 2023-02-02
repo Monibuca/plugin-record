@@ -2,6 +2,7 @@ package record
 
 import (
 	"io"
+	"math"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -15,7 +16,6 @@ import (
 
 type HLSRecorder struct {
 	playlist           hls.Playlist
-	asc                *codec.AudioSpecificConfig
 	video_cc, audio_cc byte
 	packet             mpegts.MpegTsPESPacket
 	Recorder
@@ -46,7 +46,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 			Writer:         h.Writer,
 			Version:        3,
 			Sequence:       0,
-			Targetduration: h.Fragment * 1000,
+			Targetduration: int(math.Ceil(h.Fragment.Seconds())),
 		}
 		if err = h.playlist.Init(); err != nil {
 			return
@@ -55,10 +55,8 @@ func (h *HLSRecorder) OnEvent(event any) {
 			return
 		}
 		go h.start()
-	case AudioDeConf:
-		h.asc, err = hls.DecodeAudioSpecificConfig(v.AVCC[0])
-	case *AudioFrame:
-		if h.packet, err = hls.AudioPacketToPES(v, h.asc); err != nil {
+	case AudioFrame:
+		if h.packet, err = hls.AudioPacketToPES(&v, &h.Audio.AudioSpecificConfig); err != nil {
 			return
 		}
 		pes := &mpegts.MpegtsPESFrame{
@@ -72,8 +70,8 @@ func (h *HLSRecorder) OnEvent(event any) {
 			return
 		}
 		h.audio_cc = pes.ContinuityCounter
-	case *VideoFrame:
-		h.packet, err = hls.VideoPacketToPES(v, h.Video.Track.DecoderConfiguration, h.SkipTS)
+	case VideoFrame:
+		h.packet, err = hls.VideoPacketToPES(&v, h.Video)
 		if err != nil {
 			return
 		}
@@ -107,7 +105,7 @@ func (h *HLSRecorder) createHlsTsSegmentFile() (err error) {
 	}
 	h.tsWriter = fw
 	inf := hls.PlaylistInf{
-		Duration: float64(h.Fragment),
+		Duration: h.Fragment.Seconds(),
 		Title:    tsFilename,
 	}
 	if err = h.playlist.WriteInf(inf); err != nil {
@@ -118,11 +116,11 @@ func (h *HLSRecorder) createHlsTsSegmentFile() (err error) {
 	}
 	var vcodec codec.VideoCodecID = 0
 	var acodec codec.AudioCodecID = 0
-	if h.Video.Track != nil {
-		vcodec = h.Video.Track.CodecID
+	if h.Video != nil {
+		vcodec = h.Video.CodecID
 	}
-	if h.Audio.Track != nil {
-		acodec = h.Audio.Track.CodecID
+	if h.Audio != nil {
+		acodec = h.Audio.CodecID
 	}
 	mpegts.WritePMTPacket(fw, vcodec, acodec)
 	return err

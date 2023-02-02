@@ -10,7 +10,6 @@ import (
 	. "m7s.live/engine/v4"
 	"m7s.live/engine/v4/codec"
 	"m7s.live/engine/v4/track"
-	"m7s.live/engine/v4/util"
 )
 
 type mediaContext struct {
@@ -91,11 +90,11 @@ func (r *MP4Recorder) OnEvent(event any) {
 			r.SetIO(file)
 			r.InitSegment = mp4.CreateEmptyInit()
 			r.Moov.Mvhd.NextTrackID = 1
-			if r.Video.Track != nil {
-				r.OnEvent(r.Video.Track)
+			if r.VideoReader.Track != nil {
+				r.OnEvent(r.VideoReader.Track)
 			}
-			if r.Audio.Track != nil {
-				r.OnEvent(r.Audio.Track)
+			if r.AudioReader.Track != nil {
+				r.OnEvent(r.AudioReader.Track)
 			}
 			r.ftyp.Encode(r)
 			r.Moov.Encode(r)
@@ -116,12 +115,12 @@ func (r *MP4Recorder) OnEvent(event any) {
 			r.ftyp = mp4.NewFtyp("isom", 0x200, []string{
 				"isom", "iso2", "avc1", "mp41",
 			})
-			newTrak.SetAVCDescriptor("avc1", v.DecoderConfiguration.Raw[0:1], v.DecoderConfiguration.Raw[1:2], true)
+			newTrak.SetAVCDescriptor("avc1", v.ParamaterSets[0:1], v.ParamaterSets[1:2], true)
 		case codec.CodecID_H265:
 			r.ftyp = mp4.NewFtyp("isom", 0x200, []string{
 				"isom", "iso2", "hvc1", "mp41",
 			})
-			newTrak.SetHEVCDescriptor("hvc1", v.DecoderConfiguration.Raw[0:1], v.DecoderConfiguration.Raw[1:2], v.DecoderConfiguration.Raw[2:3], true)
+			newTrak.SetHEVCDescriptor("hvc1", v.ParamaterSets[0:1], v.ParamaterSets[1:2], v.ParamaterSets[2:3], true)
 		}
 		r.AddTrack(v)
 	case *track.Audio:
@@ -134,12 +133,12 @@ func (r *MP4Recorder) OnEvent(event any) {
 		r.audio.trackId = trackID
 		switch v.CodecID {
 		case codec.CodecID_AAC:
-			switch v.Profile {
-			case 0:
-				newTrak.SetAACDescriptor(aac.HEAACv1, int(v.SampleRate))
+			switch v.AudioObjectType {
 			case 1:
-				newTrak.SetAACDescriptor(aac.AAClc, int(v.SampleRate))
+				newTrak.SetAACDescriptor(aac.HEAACv1, int(v.SampleRate))
 			case 2:
+				newTrak.SetAACDescriptor(aac.AAClc, int(v.SampleRate))
+			case 3:
 				newTrak.SetAACDescriptor(aac.HEAACv2, int(v.SampleRate))
 			}
 		case codec.CodecID_PCMA:
@@ -162,18 +161,18 @@ func (r *MP4Recorder) OnEvent(event any) {
 			r.Moov.Encode(r)
 			go r.start()
 		}
-	case *AudioFrame:
+	case AudioFrame:
 		if r.audio.trackId != 0 {
-			r.audio.push(r, v.AbsTime-r.SkipTS, v.DeltaTime, util.ConcatBuffers(v.Raw), mp4.SyncSampleFlags)
+			r.audio.push(r, v.AbsTime, v.DeltaTime, v.AUList.ToBytes(), mp4.SyncSampleFlags)
 		}
-	case *VideoFrame:
+	case VideoFrame:
 		if r.video.trackId != 0 {
 			flag := mp4.NonSyncSampleFlags
 			if v.IFrame {
 				flag = mp4.SyncSampleFlags
 			}
-			if data := util.ConcatBuffers(v.AVCC); len(data) > 5 {
-				r.video.push(r, v.AbsTime-r.SkipTS, v.DeltaTime, data[5:], flag)
+			if data := v.AUList.ToBytes(); len(data) > 5 {
+				r.video.push(r, v.AbsTime, v.DeltaTime, data[5:], flag)
 			}
 		}
 	}

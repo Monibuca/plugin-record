@@ -10,6 +10,7 @@ import (
 
 type Recorder struct {
 	Subscriber
+	SkipTS  uint32
 	*Record `json:"-"`
 	newFile bool // 创建了新的文件
 	append  bool // 是否追加模式
@@ -23,7 +24,7 @@ func (r *Recorder) start() {
 }
 
 func (r *Recorder) cut(absTime uint32) {
-	if ts := absTime - r.SkipTS; int64(ts) >= int64(r.Fragment*1000) {
+	if ts := absTime - r.SkipTS; time.Duration(ts)*time.Millisecond >= r.Fragment {
 		r.SkipTS = absTime
 		r.newFile = true
 	}
@@ -41,12 +42,12 @@ func (r *Recorder) OnEvent(event any) {
 		if file, err := r.CreateFileFn(filename, r.append); err == nil {
 			r.SetIO(file)
 		}
-	case *AudioFrame:
+	case AudioFrame:
 		// 纯音频流的情况下需要切割文件
-		if r.Fragment > 0 && r.Video.Track == nil {
+		if r.Fragment > 0 && r.VideoReader.Track == nil {
 			r.cut(v.AbsTime)
 		}
-	case *VideoFrame:
+	case VideoFrame:
 		if r.Fragment > 0 && v.IFrame {
 			r.cut(v.AbsTime)
 		}

@@ -2,7 +2,6 @@ package record
 
 import (
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"go.uber.org/zap"
 	. "m7s.live/engine/v4"
 	"m7s.live/engine/v4/codec"
+	"m7s.live/engine/v4/util"
 )
 
 type FLVRecorder struct {
@@ -43,10 +43,10 @@ func (r *FLVRecorder) start() {
 
 func (r *FLVRecorder) writeMetaData(file *os.File, duration int64) {
 	defer file.Close()
-	at, vt := r.Audio.Track, r.Video.Track
+	at, vt := r.Audio, r.Video
 	hasAudio, hasVideo := at != nil, vt != nil
-	var amf codec.AMF
-	metaData := codec.EcmaArray{
+	var amf util.AMF
+	metaData := util.EcmaArray{
 		"MetaDataCreator": "m7s " + Engine.Version,
 		"hasVideo":        hasVideo,
 		"hasAudio":        hasAudio,
@@ -99,7 +99,7 @@ func (r *FLVRecorder) writeMetaData(file *os.File, duration int64) {
 	} else {
 		tempFile.Write([]byte{'F', 'L', 'V', 0x01, flags, 0, 0, 0, 9, 0, 0, 0, 0})
 		amf.Reset()
-		codec.WriteFLVTag(tempFile, codec.FLV_TAG_TYPE_SCRIPT, 0, net.Buffers{amf.Marshals("onMetaData", metaData)})
+		codec.WriteFLVTag(tempFile, codec.FLV_TAG_TYPE_SCRIPT, 0, amf.Marshals("onMetaData", metaData))
 		file.Seek(int64(len(codec.FLVHeader)), io.SeekStart)
 		io.Copy(tempFile, file)
 		tempFile.Seek(0, io.SeekStart)
@@ -130,18 +130,18 @@ func (r *FLVRecorder) OnEvent(event any) {
 	case FLVFrame:
 		check := false
 		var absTime uint32
-		if r.Video.Track == nil {
+		if r.VideoReader.Track == nil {
 			check = true
-			absTime = r.Audio.Frame.AbsTime
+			absTime = r.AudioReader.Frame.AbsTime
 		} else {
-			check = r.Video.Frame.IFrame
-			absTime = r.Video.Frame.AbsTime
+			check = r.VideoReader.Frame.IFrame
+			absTime = r.VideoReader.Frame.AbsTime
 			if check {
 				r.filepositions = append(r.filepositions, uint64(r.Offset))
 				r.times = append(r.times, float64(absTime)/1000)
 			}
 		}
-		if r.Fragment > 0 && check && r.duration >= int64(r.Fragment*1000) {
+		if r.Fragment > 0 && check && time.Duration(r.duration)*time.Millisecond >= r.Fragment {
 			r.SkipTS = absTime
 			if file, ok := r.Writer.(*os.File); ok {
 				go r.writeMetaData(file, r.duration)
@@ -152,15 +152,15 @@ func (r *FLVRecorder) OnEvent(event any) {
 			if file, err := r.CreateFileFn(filepath.Join(r.Stream.Path, strconv.FormatInt(time.Now().Unix(), 10)+r.Ext), false); err == nil {
 				r.SetIO(file)
 				r.Write(codec.FLVHeader)
-				if r.Video.Track != nil {
-					dcflv := codec.VideoAVCC2FLV(r.Video.Track.DecoderConfiguration.AVCC, 0)
+				if r.VideoReader.Track != nil {
+					dcflv := codec.VideoAVCC2FLV(0, r.VideoReader.Track.SequenceHead)
 					dcflv.WriteTo(r)
 				}
-				if r.Audio.Track != nil && r.Audio.Track.CodecID == codec.CodecID_AAC {
-					dcflv := codec.AudioAVCC2FLV(r.Audio.Track.Value.AVCC, 0)
+				if r.AudioReader.Track != nil && r.Audio.CodecID == codec.CodecID_AAC {
+					dcflv := codec.AudioAVCC2FLV(0, r.AudioReader.Track.Value.AVCC.ToBuffers()...)
 					dcflv.WriteTo(r)
 				}
-				flv := codec.VideoAVCC2FLV(r.Video.Frame.AVCC, 0)
+				flv := codec.VideoAVCC2FLV(0, r.VideoReader.Track.Value.AVCC.ToBuffers()...)
 				flv.WriteTo(r)
 				return
 			}
