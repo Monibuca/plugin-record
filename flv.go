@@ -34,11 +34,7 @@ func (r *FLVRecorder) start() {
 	RecordPluginConfig.recordings.Store(r.ID, r)
 	r.PlayFLV()
 	RecordPluginConfig.recordings.Delete(r.ID)
-	if file, ok := r.Writer.(*os.File); ok {
-		go r.writeMetaData(file, r.duration)
-	} else {
-		r.Close()
-	}
+	r.Close()
 }
 
 func (r *FLVRecorder) writeMetaData(file *os.File, duration int64) {
@@ -141,13 +137,9 @@ func (r *FLVRecorder) OnEvent(event any) {
 				r.times = append(r.times, float64(absTime)/1000)
 			}
 		}
-		if r.Fragment > 0 && check && time.Duration(r.duration)*time.Millisecond >= r.Fragment {
+		if r.duration = int64(absTime - r.SkipTS); r.Fragment > 0 && check && time.Duration(r.duration)*time.Millisecond >= r.Fragment {
 			r.SkipTS = absTime
-			if file, ok := r.Writer.(*os.File); ok {
-				go r.writeMetaData(file, r.duration)
-			} else {
-				r.Close()
-			}
+			r.Close()
 			r.Offset = 0
 			if file, err := r.CreateFileFn(filepath.Join(r.Stream.Path, strconv.FormatInt(time.Now().Unix(), 10)+r.Ext), false); err == nil {
 				r.SetIO(file)
@@ -169,9 +161,16 @@ func (r *FLVRecorder) OnEvent(event any) {
 			r.Stop()
 		} else {
 			r.Offset += n
-			r.duration = int64(absTime - r.SkipTS)
 		}
 	default:
 		r.Subscriber.OnEvent(event)
+	}
+}
+
+func (r *FLVRecorder) Close() {
+	if file, ok := r.Writer.(*os.File); ok {
+		go r.writeMetaData(file, r.duration)
+	} else {
+		r.Recorder.Close()
 	}
 }
