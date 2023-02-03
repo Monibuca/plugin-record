@@ -93,16 +93,35 @@ func (r *FLVRecorder) writeMetaData(file *os.File, duration int64) {
 		r.Error("create temp file failed: ", zap.Error(err))
 		return
 	} else {
-		tempFile.Write([]byte{'F', 'L', 'V', 0x01, flags, 0, 0, 0, 9, 0, 0, 0, 0})
+		defer func() {
+			tempFile.Close()
+			os.Remove(tempFile.Name())
+		}()
+		_, err := tempFile.Write([]byte{'F', 'L', 'V', 0x01, flags, 0, 0, 0, 9, 0, 0, 0, 0})
+		if err != nil {
+			r.Error("", zap.Error(err))
+			return
+		}
 		amf.Reset()
-		codec.WriteFLVTag(tempFile, codec.FLV_TAG_TYPE_SCRIPT, 0, amf.Marshals("onMetaData", metaData))
-		file.Seek(int64(len(codec.FLVHeader)), io.SeekStart)
-		io.Copy(tempFile, file)
+		marshals := amf.Marshals("onMetaData", metaData)
+		codec.WriteFLVTag(tempFile, codec.FLV_TAG_TYPE_SCRIPT, 0, marshals)
+		_, err = file.Seek(int64(len(codec.FLVHeader)), io.SeekStart)
+		if err != nil {
+			r.Error("writeMetaData Seek failed: ", zap.Error(err))
+			return
+		}
+		_, err = io.Copy(tempFile, file)
+		if err != nil {
+			r.Error("writeMetaData Copy failed: ", zap.Error(err))
+			return
+		}
 		tempFile.Seek(0, io.SeekStart)
 		file.Seek(0, io.SeekStart)
-		io.Copy(file, tempFile)
-		tempFile.Close()
-		os.Remove(tempFile.Name())
+		_, err = io.Copy(file, tempFile)
+		if err != nil {
+			r.Error("writeMetaData Copy failed: ", zap.Error(err))
+			return
+		}
 	}
 }
 
