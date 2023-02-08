@@ -171,7 +171,7 @@ func (r *MP4Recorder) OnEvent(event any) {
 			if v.IFrame {
 				flag = mp4.SyncSampleFlags
 			}
-			if data := v.AUList.ToBytes(); len(data) > 5 {
+			if data := v.AVCC.ToBytes(); len(data) > 5 {
 				r.video.push(r, v.AbsTime, v.DeltaTime, data[5:], flag)
 			}
 		}
