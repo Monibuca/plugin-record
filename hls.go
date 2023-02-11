@@ -11,6 +11,7 @@ import (
 	. "m7s.live/engine/v4"
 	"m7s.live/engine/v4/codec"
 	"m7s.live/engine/v4/codec/mpegts"
+	"m7s.live/engine/v4/util"
 	"m7s.live/plugin/hls/v4"
 )
 
@@ -20,6 +21,7 @@ type HLSRecorder struct {
 	packet             mpegts.MpegTsPESPacket
 	Recorder
 	tsWriter io.WriteCloser
+	MemoryTs
 }
 
 func (h *HLSRecorder) Start(streamPath string) error {
@@ -28,6 +30,7 @@ func (h *HLSRecorder) Start(streamPath string) error {
 	if _, ok := RecordPluginConfig.recordings.Load(h.ID); ok {
 		return ErrRecordExist
 	}
+	h.BytesPool = make(util.BytesPool, 17)
 	return plugin.Subscribe(streamPath, h)
 }
 
@@ -54,27 +57,21 @@ func (h *HLSRecorder) OnEvent(event any) {
 		if err = h.createHlsTsSegmentFile(); err != nil {
 			return
 		}
+		
 		go h.start()
 	case AudioFrame:
-		if h.packet, err = hls.AudioPacketToPES(&v, &h.Audio.AudioSpecificConfig); err != nil {
-			return
-		}
 		pes := &mpegts.MpegtsPESFrame{
 			Pid:                       mpegts.PID_AUDIO,
 			IsKeyFrame:                false,
 			ContinuityCounter:         h.audio_cc,
-			ProgramClockReferenceBase: uint64(v.DTS - h.SkipTS*90),
+			ProgramClockReferenceBase: uint64(v.DTS),
 		}
-		//frame.ProgramClockReferenceBase = 0
-		if err = mpegts.WritePESPacket(h.tsWriter, pes, h.packet); err != nil {
-			return
-		}
+		h.WriteAudioFrame(&v, &h.Audio.AudioSpecificConfig, pes)
+		h.BLL.WriteTo(h.tsWriter)
+		h.Recycle()
+		h.Clear()
 		h.audio_cc = pes.ContinuityCounter
 	case VideoFrame:
-		h.packet, err = hls.VideoPacketToPES(&v, h.Video)
-		if err != nil {
-			return
-		}
 		if h.Fragment != 0 && h.newFile {
 			h.newFile = false
 			h.tsWriter.Close()
@@ -86,14 +83,16 @@ func (h *HLSRecorder) OnEvent(event any) {
 			Pid:                       mpegts.PID_VIDEO,
 			IsKeyFrame:                v.IFrame,
 			ContinuityCounter:         h.video_cc,
-			ProgramClockReferenceBase: uint64(v.DTS - h.SkipTS*90),
+			ProgramClockReferenceBase: uint64(v.DTS),
 		}
-		if err = mpegts.WritePESPacket(h.tsWriter, pes, h.packet); err != nil {
+		if err = h.WriteVideoFrame(&v, h.Video.ParamaterSets, pes); err != nil {
 			return
 		}
+		h.BLL.WriteTo(h.tsWriter)
+		h.Recycle()
+		h.Clear()
 		h.video_cc = pes.ContinuityCounter
 	}
-
 }
 
 // 创建一个新的ts文件
