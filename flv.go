@@ -147,31 +147,35 @@ func (r *FLVRecorder) OnEvent(event any) {
 		var absTime uint32
 		if r.VideoReader.Track == nil {
 			check = true
-			absTime = r.AudioReader.Frame.AbsTime
-		} else {
+			absTime = r.AudioReader.AbsTime
+		} else if v.IsVideo() {
 			check = r.VideoReader.Frame.IFrame
-			absTime = r.VideoReader.Frame.AbsTime
+			absTime = r.VideoReader.AbsTime
 			if check {
 				r.filepositions = append(r.filepositions, uint64(r.Offset))
 				r.times = append(r.times, float64(absTime)/1000)
 			}
 		}
-		if r.duration = int64(absTime - r.SkipTS); r.Fragment > 0 && check && time.Duration(r.duration)*time.Millisecond >= r.Fragment {
-			r.SkipTS = absTime
-			r.Close()
+
+		if r.duration = int64(absTime); r.Fragment > 0 && check && time.Duration(r.duration)*time.Millisecond >= r.Fragment {
+			r.Recorder.Close()
 			r.Offset = 0
 			if file, err := r.CreateFileFn(filepath.Join(r.Stream.Path, strconv.FormatInt(time.Now().Unix(), 10)+r.Ext), false); err == nil {
 				r.SetIO(file)
 				r.Write(codec.FLVHeader)
 				if r.VideoReader.Track != nil {
+					r.VideoReader.ResetAbsTime()
 					dcflv := codec.VideoAVCC2FLV(0, r.VideoReader.Track.SequenceHead)
 					dcflv.WriteTo(r)
 				}
-				if r.AudioReader.Track != nil && r.Audio.CodecID == codec.CodecID_AAC {
-					dcflv := codec.AudioAVCC2FLV(0, r.AudioReader.Track.Value.AVCC.ToBuffers()...)
-					dcflv.WriteTo(r)
+				if r.AudioReader.Track != nil {
+					r.AudioReader.ResetAbsTime()
+					if r.Audio.CodecID == codec.CodecID_AAC {
+						dcflv := codec.AudioAVCC2FLV(0, r.AudioReader.Track.SequenceHead)
+						dcflv.WriteTo(r)
+					}
 				}
-				flv := codec.VideoAVCC2FLV(0, r.VideoReader.Track.Value.AVCC.ToBuffers()...)
+				flv := codec.VideoAVCC2FLV(0, r.VideoReader.Frame.AVCC.ToBuffers()...)
 				flv.WriteTo(r)
 				return
 			}
