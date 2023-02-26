@@ -2,6 +2,7 @@ package record
 
 import (
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -163,20 +164,21 @@ func (r *FLVRecorder) OnEvent(event any) {
 			if file, err := r.CreateFileFn(filepath.Join(r.Stream.Path, strconv.FormatInt(time.Now().Unix(), 10)+r.Ext), false); err == nil {
 				r.SetIO(file)
 				r.Write(codec.FLVHeader)
+				var dcflv net.Buffers
 				if r.VideoReader.Track != nil {
 					r.VideoReader.ResetAbsTime()
-					dcflv := codec.VideoAVCC2FLV(0, r.VideoReader.Track.SequenceHead)
-					dcflv.WriteTo(r)
+					dcflv = codec.VideoAVCC2FLV(0, r.VideoReader.Track.SequenceHead)
+					flv := append(dcflv, codec.VideoAVCC2FLV(0, r.VideoReader.Frame.AVCC.ToBuffers()...)...)
+					flv.WriteTo(r)
 				}
 				if r.AudioReader.Track != nil {
 					r.AudioReader.ResetAbsTime()
 					if r.Audio.CodecID == codec.CodecID_AAC {
-						dcflv := codec.AudioAVCC2FLV(0, r.AudioReader.Track.SequenceHead)
-						dcflv.WriteTo(r)
+						dcflv = codec.AudioAVCC2FLV(0, r.AudioReader.Track.SequenceHead)
 					}
+					flv := append(dcflv, codec.AudioAVCC2FLV(0, r.AudioReader.Frame.AVCC.ToBuffers()...)...)
+					flv.WriteTo(r)
 				}
-				flv := codec.VideoAVCC2FLV(0, r.VideoReader.Frame.AVCC.ToBuffers()...)
-				flv.WriteTo(r)
 				return
 			}
 		}
