@@ -56,13 +56,13 @@ func (conf *RecordConfig) OnEvent(event any) {
 		conf.Hls.Init()
 		conf.Raw.Init()
 	case SEclose:
-		streamPath := v.Stream.Path
+		streamPath := v.Target.Path
 		delete(conf.Flv.recording, streamPath)
 		delete(conf.Mp4.recording, streamPath)
 		delete(conf.Hls.recording, streamPath)
 		delete(conf.Raw.recording, streamPath)
 	case SEpublish:
-		streamPath := v.Stream.Path
+		streamPath := v.Target.Path
 		if conf.Flv.NeedRecord(streamPath) {
 			var flv FLVRecorder
 			flv.IsInternal = true
