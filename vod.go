@@ -2,7 +2,6 @@ package record
 
 import (
 	"net/http"
-	"strings"
 )
 
 func ext(path string) string {
@@ -15,10 +14,7 @@ func ext(path string) string {
 }
 
 func (conf *RecordConfig) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	p := strings.TrimPrefix(r.RequestURI, "/")
-	p = strings.TrimPrefix(p, "record/")
-	r.URL.Path = p
-	switch ext(p) {
+	switch ext(r.URL.Path) {
 	case ".flv":
 		conf.Flv.ServeHTTP(w, r)
 	case ".mp4":
