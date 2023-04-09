@@ -159,7 +159,7 @@ func (r *FLVRecorder) OnEvent(event any) {
 		}
 
 		if r.duration = int64(absTime); r.Fragment > 0 && check && time.Duration(r.duration)*time.Millisecond >= r.Fragment {
-			r.Recorder.Close()
+			r.Close()
 			r.Offset = 0
 			if file, err := r.CreateFileFn(filepath.Join(r.Stream.Path, strconv.FormatInt(time.Now().Unix(), 10)+r.Ext), false); err == nil {
 				r.SetIO(file)
