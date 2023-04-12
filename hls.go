@@ -1,7 +1,6 @@
 package record
 
 import (
-	"io"
 	"math"
 	"path/filepath"
 	"strconv"
@@ -20,7 +19,6 @@ type HLSRecorder struct {
 	video_cc, audio_cc byte
 	packet             mpegts.MpegTsPESPacket
 	Recorder
-	tsWriter io.WriteCloser
 	MemoryTs
 }
 
@@ -57,7 +55,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 		if err = h.createHlsTsSegmentFile(); err != nil {
 			return
 		}
-		
+
 		go h.start()
 	case AudioFrame:
 		pes := &mpegts.MpegtsPESFrame{
@@ -67,14 +65,14 @@ func (h *HLSRecorder) OnEvent(event any) {
 			ProgramClockReferenceBase: uint64(v.DTS),
 		}
 		h.WriteAudioFrame(v, pes)
-		h.BLL.WriteTo(h.tsWriter)
+		h.BLL.WriteTo(h)
 		h.Recycle()
 		h.Clear()
 		h.audio_cc = pes.ContinuityCounter
 	case VideoFrame:
 		if h.Fragment != 0 && h.newFile {
 			h.newFile = false
-			h.tsWriter.Close()
+			h.Close()
 			if err = h.createHlsTsSegmentFile(); err != nil {
 				return
 			}
@@ -88,7 +86,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 		if err = h.WriteVideoFrame(v, pes); err != nil {
 			return
 		}
-		h.BLL.WriteTo(h.tsWriter)
+		h.BLL.WriteTo(h)
 		h.Recycle()
 		h.Clear()
 		h.video_cc = pes.ContinuityCounter
@@ -102,7 +100,7 @@ func (h *HLSRecorder) createHlsTsSegmentFile() (err error) {
 	if err != nil {
 		return err
 	}
-	h.tsWriter = fw
+	h.SetIO(fw)
 	inf := hls.PlaylistInf{
 		Duration: h.Fragment.Seconds(),
 		Title:    tsFilename,

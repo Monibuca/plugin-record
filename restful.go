@@ -2,9 +2,9 @@ package record
 
 import (
 	"encoding/json"
-	. "m7s.live/engine/v4"
-	"m7s.live/engine/v4/util"
 	"net/http"
+
+	. "m7s.live/engine/v4"
 )
 
 func (conf *RecordConfig) API_list(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +45,6 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	}
 	t := query.Get("type")
 	var id string
-	var filePath string
 	var err error
 	switch t {
 	case "":
@@ -54,7 +53,7 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	case "flv":
 		var flvRecoder FLVRecorder
 		flvRecoder.IsInternal = true
-		flvRecoder.append = query.Get("append") != "" && util.Exist(filePath)
+		flvRecoder.append = query.Get("append") != ""
 		err = flvRecoder.Start(streamPath)
 		id = flvRecoder.ID
 	case "mp4":
@@ -70,7 +69,7 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	case "raw":
 		var recorder RawRecorder
 		recorder.IsInternal = true
-		recorder.append = query.Get("append") != "" && util.Exist(filePath)
+		recorder.append = query.Get("append") != ""
 		err = recorder.Start(streamPath)
 		id = recorder.ID
 	default:

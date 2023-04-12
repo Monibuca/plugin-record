@@ -20,7 +20,6 @@ func (r *Recorder) start() {
 	RecordPluginConfig.recordings.Store(r.ID, r)
 	r.PlayRaw()
 	RecordPluginConfig.recordings.Delete(r.ID)
-	r.Close()
 }
 
 func (r *Recorder) cut(absTime uint32) {

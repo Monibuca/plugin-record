@@ -35,7 +35,6 @@ func (r *FLVRecorder) start() {
 	RecordPluginConfig.recordings.Store(r.ID, r)
 	r.PlayFLV()
 	RecordPluginConfig.recordings.Delete(r.ID)
-	r.Close()
 }
 
 func (r *FLVRecorder) writeMetaData(file *os.File, duration int64) {
@@ -192,10 +191,16 @@ func (r *FLVRecorder) OnEvent(event any) {
 	}
 }
 
-func (r *FLVRecorder) Close() {
+func (r *FLVRecorder) SetIO(file any) {
+	r.Subscriber.SetIO(file)
+	r.Closer = r
+}
+
+func (r *FLVRecorder) Close() error {
 	if file, ok := r.Writer.(*os.File); ok {
 		go r.writeMetaData(file, r.duration)
-	} else {
-		r.Recorder.Close()
+	} else if closer, ok := r.Writer.(io.Closer); ok {
+		return closer.Close()
 	}
+	return nil
 }

@@ -30,7 +30,7 @@ type Record struct {
 	Path          string //存储文件的目录
 	AutoRecord    bool
 	Filter        string
-	Fragment      time.Duration //分片大小（秒）0表示不分片
+	Fragment      time.Duration //分片大小，0表示不分片
 	filterReg     *regexp.Regexp
 	fs            http.Handler
 	CreateFileFn  func(filename string, append bool) (FileWr, error) `yaml:"-" json:"-"`
