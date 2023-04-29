@@ -96,6 +96,7 @@ func (r *FLVRecorder) writeMetaData(file *os.File, duration int64) {
 		defer func() {
 			tempFile.Close()
 			os.Remove(tempFile.Name())
+			r.Info("writeMetaData success")
 		}()
 		_, err := tempFile.Write([]byte{'F', 'L', 'V', 0x01, flags, 0, 0, 0, 9, 0, 0, 0, 0})
 		if err != nil {

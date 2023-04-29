@@ -52,23 +52,19 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 		fallthrough
 	case "flv":
 		var flvRecoder FLVRecorder
-		flvRecoder.IsInternal = true
 		flvRecoder.append = query.Get("append") != ""
 		err = flvRecoder.Start(streamPath)
 		id = flvRecoder.ID
 	case "mp4":
 		recorder := NewMP4Recorder()
-		recorder.IsInternal = true
 		err = recorder.Start(streamPath)
 		id = recorder.ID
 	case "hls":
 		var recorder HLSRecorder
-		recorder.IsInternal = true
 		err = recorder.Start(streamPath)
 		id = recorder.ID
 	case "raw":
 		var recorder RawRecorder
-		recorder.IsInternal = true
 		recorder.append = query.Get("append") != ""
 		err = recorder.Start(streamPath)
 		id = recorder.ID

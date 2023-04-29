@@ -65,29 +65,23 @@ func (conf *RecordConfig) OnEvent(event any) {
 		streamPath := v.Target.Path
 		if conf.Flv.NeedRecord(streamPath) {
 			var flv FLVRecorder
-			flv.IsInternal = true
-			if flv.Start(streamPath) == nil {
-				conf.Flv.recording[streamPath] = &flv
-			}
+			conf.Flv.recording[streamPath] = &flv
+			go flv.Start(streamPath)
 		}
 		if conf.Mp4.NeedRecord(streamPath) {
-			if recoder := NewMP4Recorder(); recoder.Start(streamPath) == nil {
-				conf.Mp4.recording[streamPath] = recoder
-			}
+			recoder := NewMP4Recorder()
+			conf.Mp4.recording[streamPath] = recoder
+			go recoder.Start(streamPath)
 		}
 		if conf.Hls.NeedRecord(streamPath) {
 			var hls HLSRecorder
-			hls.IsInternal = true
-			if hls.Start(streamPath) == nil {
-				conf.Hls.recording[streamPath] = &hls
-			}
+			conf.Hls.recording[streamPath] = &hls
+			go hls.Start(streamPath)
 		}
 		if conf.Raw.NeedRecord(streamPath) {
 			var raw RawRecorder
-			raw.IsInternal = true
-			if raw.Start(streamPath) == nil {
-				conf.Raw.recording[streamPath] = &raw
-			}
+			conf.Raw.recording[streamPath] = &raw
+			go raw.Start(streamPath)
 		}
 	}
 }

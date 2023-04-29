@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/edgeware/mp4ff v0.28.0
 	go.uber.org/zap v1.23.0
-	m7s.live/engine/v4 v4.12.0
+	m7s.live/engine/v4 v4.12.6
 	m7s.live/plugin/hls/v4 v4.0.0-20220619163635-447976e65ab9
 )
 
@@ -35,7 +35,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.22.10 // indirect
 	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tklauser/numcpus v0.6.0 // indirect
-	github.com/yapingcat/gomedia v0.0.0-20230222121919-c67df405bf33 // indirect
+	github.com/yapingcat/gomedia v0.0.0-20230426092936-387031404274 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect

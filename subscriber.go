@@ -11,7 +11,7 @@ import (
 type Recorder struct {
 	Subscriber
 	SkipTS  uint32
-	*Record `json:"-"`
+	*Record `json:"-" yaml:"-"`
 	newFile bool // 创建了新的文件
 	append  bool // 是否追加模式
 }

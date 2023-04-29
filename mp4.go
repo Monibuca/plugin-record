@@ -41,7 +41,7 @@ func (m *mediaContext) push(recoder *MP4Recorder, dt uint32, dur uint32, data []
 
 type MP4Recorder struct {
 	Recorder
-	*mp4.InitSegment `json:"-"`
+	*mp4.InitSegment `json:"-" yaml:"-"`
 	video            mediaContext
 	audio            mediaContext
 	seqNumber        uint32
@@ -52,7 +52,6 @@ func NewMP4Recorder() *MP4Recorder {
 	r := &MP4Recorder{
 		InitSegment: mp4.CreateEmptyInit(),
 	}
-	r.IsInternal = true
 	r.Moov.Mvhd.NextTrackID = 1
 	return r
 }
