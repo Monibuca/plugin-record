@@ -33,8 +33,8 @@ type Record struct {
 	Fragment      time.Duration //分片大小，0表示不分片
 	filterReg     *regexp.Regexp
 	fs            http.Handler
-	CreateFileFn  func(filename string, append bool) (FileWr, error) `yaml:"-" json:"-"`
-	GetDurationFn func(file io.ReadSeeker) uint32                    `yaml:"-" json:"-"`
+	CreateFileFn  func(filename string, append bool) (FileWr, error) `json:"-" yaml:"-"`
+	GetDurationFn func(file io.ReadSeeker) uint32                    `json:"-" yaml:"-"`
 	recording     map[string]engine.ISubscriber
 }
 

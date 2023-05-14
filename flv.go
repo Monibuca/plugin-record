@@ -146,7 +146,7 @@ func (r *FLVRecorder) OnEvent(event any) {
 	case FLVFrame:
 		check := false
 		var absTime uint32
-		if r.VideoReader.Track == nil {
+		if r.VideoReader == nil {
 			check = true
 			absTime = r.AudioReader.AbsTime
 		} else if v.IsVideo() {
@@ -165,7 +165,7 @@ func (r *FLVRecorder) OnEvent(event any) {
 				r.SetIO(file)
 				r.Write(codec.FLVHeader)
 				var dcflv net.Buffers
-				if r.VideoReader.Track != nil {
+				if r.VideoReader != nil {
 					r.VideoReader.ResetAbsTime()
 					dcflv = codec.VideoAVCC2FLV(0, r.VideoReader.Track.SequenceHead)
 					flv := append(dcflv, codec.VideoAVCC2FLV(0, r.VideoReader.Frame.AVCC.ToBuffers()...)...)

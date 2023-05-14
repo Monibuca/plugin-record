@@ -89,10 +89,10 @@ func (r *MP4Recorder) OnEvent(event any) {
 			r.SetIO(file)
 			r.InitSegment = mp4.CreateEmptyInit()
 			r.Moov.Mvhd.NextTrackID = 1
-			if r.VideoReader.Track != nil {
+			if r.VideoReader != nil {
 				r.OnEvent(r.Video)
 			}
-			if r.AudioReader.Track != nil {
+			if r.AudioReader != nil {
 				r.OnEvent(r.Audio)
 			}
 			r.ftyp.Encode(r)

@@ -43,7 +43,7 @@ func (r *Recorder) OnEvent(event any) {
 		}
 	case AudioFrame:
 		// 纯音频流的情况下需要切割文件
-		if r.Fragment > 0 && r.VideoReader.Track == nil {
+		if r.Fragment > 0 && r.VideoReader == nil {
 			r.cut(v.AbsTime)
 		}
 	case VideoFrame:
