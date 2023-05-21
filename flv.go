@@ -171,7 +171,7 @@ func (r *FLVRecorder) OnEvent(event any) {
 					flv := append(dcflv, codec.VideoAVCC2FLV(0, r.VideoReader.Frame.AVCC.ToBuffers()...)...)
 					flv.WriteTo(r)
 				}
-				if r.AudioReader.Track != nil {
+				if r.AudioReader != nil {
 					r.AudioReader.ResetAbsTime()
 					if r.Audio.CodecID == codec.CodecID_AAC {
 						dcflv = codec.AudioAVCC2FLV(0, r.AudioReader.Track.SequenceHead)
