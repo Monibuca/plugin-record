@@ -19,6 +19,7 @@ type RecordConfig struct {
 	Mp4        Record
 	Hls        Record
 	Raw        Record
+	RawAudio   Record
 	recordings sync.Map
 }
 
@@ -44,6 +45,10 @@ var RecordPluginConfig = &RecordConfig{
 		Path: "record/raw",
 		Ext:  ".", // 默认h264扩展名为.h264,h265扩展名为.h265
 	},
+	RawAudio: Record{
+		Path: "record/raw",
+		Ext:  ".", // 默认aac扩展名为.aac,pcma扩展名为.pcma,pcmu扩展名为.pcmu
+	},
 }
 
 var plugin = InstallPlugin(RecordPluginConfig)
@@ -55,12 +60,14 @@ func (conf *RecordConfig) OnEvent(event any) {
 		conf.Mp4.Init()
 		conf.Hls.Init()
 		conf.Raw.Init()
+		conf.RawAudio.Init()
 	case SEclose:
 		streamPath := v.Target.Path
 		delete(conf.Flv.recording, streamPath)
 		delete(conf.Mp4.recording, streamPath)
 		delete(conf.Hls.recording, streamPath)
 		delete(conf.Raw.recording, streamPath)
+		delete(conf.RawAudio.recording, streamPath)
 	case SEpublish:
 		streamPath := v.Target.Path
 		if conf.Flv.NeedRecord(streamPath) {
@@ -83,6 +90,12 @@ func (conf *RecordConfig) OnEvent(event any) {
 			conf.Raw.recording[streamPath] = &raw
 			go raw.Start(streamPath)
 		}
+		if conf.RawAudio.NeedRecord(streamPath) {
+			var raw RawRecorder
+			raw.IsAudio = true
+			conf.RawAudio.recording[streamPath] = &raw
+			go raw.Start(streamPath)
+		}
 	}
 }
 func (conf *RecordConfig) getRecorderConfigByType(t string) (recorder *Record) {
@@ -95,6 +108,8 @@ func (conf *RecordConfig) getRecorderConfigByType(t string) (recorder *Record) {
 		recorder = &conf.Hls
 	case "raw":
 		recorder = &conf.Raw
+	case "raw_audio":
+		recorder = &conf.RawAudio
 	}
 	return
 }

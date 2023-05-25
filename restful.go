@@ -3,8 +3,10 @@ package record
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	. "m7s.live/engine/v4"
+	"m7s.live/engine/v4/util"
 )
 
 func (conf *RecordConfig) API_list(w http.ResponseWriter, r *http.Request) {
@@ -14,7 +16,7 @@ func (conf *RecordConfig) API_list(w http.ResponseWriter, r *http.Request) {
 	var err error
 	recorder := conf.getRecorderConfigByType(t)
 	if recorder == nil {
-		for _, t = range []string{"flv", "mp4", "hls", "raw"} {
+		for _, t = range []string{"flv", "mp4", "hls", "raw", "rawAudio"} {
 			recorder = conf.getRecorderConfigByType(t)
 			var fs []*VideoFileInfo
 			if fs, err = recorder.Tree(recorder.Path, 0); err == nil {
@@ -68,6 +70,12 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 		recorder.append = query.Get("append") != ""
 		err = recorder.Start(streamPath)
 		id = recorder.ID
+	case "raw_audio":
+		var recorder RawRecorder
+		recorder.IsAudio = true
+		recorder.append = query.Get("append") != ""
+		err = recorder.Start(streamPath)
+		id = recorder.ID
 	default:
 		http.Error(w, "type not supported", http.StatusBadRequest)
 		return
@@ -80,14 +88,13 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 }
 
 func (conf *RecordConfig) API_list_recording(w http.ResponseWriter, r *http.Request) {
-	var recordings []any
-	conf.recordings.Range(func(key, value any) bool {
-		recordings = append(recordings, value)
-		return true
-	})
-	if err := json.NewEncoder(w).Encode(recordings); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	util.ReturnJson(func() (recordings []any) {
+		conf.recordings.Range(func(key, value any) bool {
+			recordings = append(recordings, value)
+			return true
+		})
+		return
+	}, time.Second, w, r)
 }
 
 func (conf *RecordConfig) API_stop(w http.ResponseWriter, r *http.Request) {
