@@ -16,7 +16,7 @@ func (conf *RecordConfig) API_list(w http.ResponseWriter, r *http.Request) {
 	var err error
 	recorder := conf.getRecorderConfigByType(t)
 	if recorder == nil {
-		for _, t = range []string{"flv", "mp4", "hls", "raw", "rawAudio"} {
+		for _, t = range []string{"flv", "mp4", "hls", "raw", "raw_audio"} {
 			recorder = conf.getRecorderConfigByType(t)
 			var fs []*VideoFileInfo
 			if fs, err = recorder.Tree(recorder.Path, 0); err == nil {
