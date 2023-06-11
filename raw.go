@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"go.uber.org/zap"
 	. "m7s.live/engine/v4"
 	"m7s.live/engine/v4/codec"
 	"m7s.live/engine/v4/track"
@@ -42,6 +43,9 @@ func (r *RawRecorder) OnEvent(event any) {
 		}
 		if file, err := r.CreateFileFn(filename, r.append); err == nil {
 			r.SetIO(file)
+		} else {
+			r.Error("create file failed", zap.Error(err))
+			r.Stop()
 		}
 		go r.start()
 	case *track.Video:

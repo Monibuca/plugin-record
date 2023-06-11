@@ -137,6 +137,10 @@ func (r *FLVRecorder) OnEvent(event any) {
 		}
 		if file, err := r.CreateFileFn(filename, r.append); err == nil {
 			r.SetIO(file)
+		} else {
+			r.Error("create file failed", zap.Error(err))
+			r.Stop()
+			return
 		}
 		// 写入文件头
 		if !r.append {

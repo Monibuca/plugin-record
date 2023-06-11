@@ -155,7 +155,7 @@ func (r *MP4Recorder) OnEvent(event any) {
 		}
 		r.AddTrack(v)
 	case ISubscriber:
-		if r.ftyp != nil {
+		if r.ftyp != nil && r.Writer != nil {
 			r.ftyp.Encode(r)
 			r.Moov.Encode(r)
 			go r.start()

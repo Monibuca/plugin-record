@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"go.uber.org/zap"
 	. "m7s.live/engine/v4"
 )
 
@@ -40,6 +41,9 @@ func (r *Recorder) OnEvent(event any) {
 		}
 		if file, err := r.CreateFileFn(filename, r.append); err == nil {
 			r.SetIO(file)
+		} else {
+			r.Error("create file failed", zap.Error(err))
+			r.Stop()
 		}
 	case AudioFrame:
 		// 纯音频流的情况下需要切割文件

@@ -53,9 +53,9 @@ func (h *HLSRecorder) OnEvent(event any) {
 			return
 		}
 		if err = h.createHlsTsSegmentFile(); err != nil {
+			h.Stop()
 			return
 		}
-
 		go h.start()
 	case AudioFrame:
 		pes := &mpegts.MpegtsPESFrame{
