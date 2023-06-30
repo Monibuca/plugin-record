@@ -154,7 +154,7 @@ func (r *FLVRecorder) OnEvent(event any) {
 			check = true
 			absTime = r.AudioReader.AbsTime
 		} else if v.IsVideo() {
-			check = r.VideoReader.Frame.IFrame
+			check = r.VideoReader.Value.IFrame
 			absTime = r.VideoReader.AbsTime
 			if check {
 				r.filepositions = append(r.filepositions, uint64(r.Offset))
@@ -172,7 +172,7 @@ func (r *FLVRecorder) OnEvent(event any) {
 				if r.VideoReader != nil {
 					r.VideoReader.ResetAbsTime()
 					dcflv = codec.VideoAVCC2FLV(0, r.VideoReader.Track.SequenceHead)
-					flv := append(dcflv, codec.VideoAVCC2FLV(0, r.VideoReader.Frame.AVCC.ToBuffers()...)...)
+					flv := append(dcflv, codec.VideoAVCC2FLV(0, r.VideoReader.Value.AVCC.ToBuffers()...)...)
 					flv.WriteTo(r)
 				}
 				if r.AudioReader != nil {
@@ -180,7 +180,7 @@ func (r *FLVRecorder) OnEvent(event any) {
 					if r.Audio.CodecID == codec.CodecID_AAC {
 						dcflv = codec.AudioAVCC2FLV(0, r.AudioReader.Track.SequenceHead)
 					}
-					flv := append(dcflv, codec.AudioAVCC2FLV(0, r.AudioReader.Frame.AVCC.ToBuffers()...)...)
+					flv := append(dcflv, codec.AudioAVCC2FLV(0, r.AudioReader.Value.AVCC.ToBuffers()...)...)
 					flv.WriteTo(r)
 				}
 				return
