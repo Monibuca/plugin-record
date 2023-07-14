@@ -137,16 +137,37 @@ func (r *FLVRecorder) OnEvent(event any) {
 		}
 		if file, err := r.CreateFileFn(filename, r.append); err == nil {
 			r.SetIO(file)
+			// 写入文件头
+			if !r.append {
+				r.Write(codec.FLVHeader)
+			} else {
+				if _, err = file.Seek(-4, io.SeekEnd); err != nil {
+					r.Error("seek file failed", zap.Error(err))
+					r.Write(codec.FLVHeader)
+				} else {
+					tmp := make(util.Buffer, 4)
+					tmp2 := tmp
+					file.Read(tmp)
+					tagSize := tmp.ReadUint32()
+					tmp = tmp2
+					file.Seek(int64(tagSize), io.SeekEnd)
+					file.Read(tmp2)
+					ts := tmp2.ReadUint24() | (uint32(tmp[3]) << 24)
+					r.Info("append flv", zap.String("filename", filename), zap.Uint32("last tagSize", tagSize), zap.Uint32("last ts", ts))
+					if r.VideoReader != nil {
+						r.VideoReader.StartTs = time.Duration(ts) * time.Millisecond
+					}
+					if r.AudioReader != nil {
+						r.AudioReader.StartTs = time.Duration(ts) * time.Millisecond
+					}
+					file.Seek(0, io.SeekEnd)
+				}
+			}
+			go r.start()
 		} else {
 			r.Error("create file failed", zap.Error(err))
 			r.Stop()
-			return
 		}
-		// 写入文件头
-		if !r.append {
-			r.Write(codec.FLVHeader)
-		}
-		go r.start()
 	case FLVFrame:
 		check := false
 		var absTime uint32
@@ -187,6 +208,7 @@ func (r *FLVRecorder) OnEvent(event any) {
 			}
 		}
 		if n, err := v.WriteTo(r); err != nil {
+			r.Error("write file failed", zap.Error(err))
 			r.Stop()
 		} else {
 			r.Offset += n
@@ -202,7 +224,7 @@ func (r *FLVRecorder) SetIO(file any) {
 }
 
 func (r *FLVRecorder) Close() error {
-	if file, ok := r.Writer.(*os.File); ok {
+	if file, ok := r.Writer.(*os.File); ok && !r.append {
 		go r.writeMetaData(file, r.duration)
 	} else if closer, ok := r.Writer.(io.Closer); ok {
 		return closer.Close()
