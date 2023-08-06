@@ -20,17 +20,7 @@ import (
 
 ```yaml
 record:
-  subscribe:
-      subaudio: true # 是否订阅音频流
-      subvideo: true # 是否订阅视频流
-      subaudioargname: ats # 订阅音频轨道参数名
-      subvideoargname: vts # 订阅视频轨道参数名
-      subdataargname: dts # 订阅数据轨道参数名
-      subaudiotracks: [] # 订阅音频轨道名称列表
-      subvideotracks: [] # 订阅视频轨道名称列表
-      submode: 0 # 订阅模式，0为跳帧追赶模式，1为不追赶（多用于录制），2为时光回溯模式
-      iframeonly: false # 只订阅关键帧
-      waittimeout: 10s # 等待发布者的超时时间，用于订阅尚未发布的流
+  subscribe: # 参考全局配置格式
   flv:
       ext: .flv
       path: record/flv
@@ -60,11 +50,10 @@ record:
 ## API
 
 - `/record/api/list/recording` 罗列所有正在录制中的流的信息
-- `/record/api/list?type=flv` 罗列所有录制的flv文件
-- `/record/api/start?type=flv&streamPath=live/rtc&fileName=xxx` 开始录制某个流,返回一个字符串用于停止录制用的id(fileName是可选的，且只用于非切片情况)
+- `/record/api/list?type=[flv|mp4|hls|raw]` 罗列所有录制的flv|mp4|m3u8|raw文件
+- `/record/api/start?type=flv&streamPath=live/rtc&fileName=xxx&fragment=10s` 开始录制某个流,返回一个字符串用于停止录制用的id(fileName是可选的，且只用于非切片情况,fragment用于覆盖配置中的切片时间，是可选的)
 - `/record/api/stop?id=xxx` 停止录制某个流
 
-其中将type值改为mp4则录制成fmp4格式。
 ## 点播功能
 
 访问格式：
