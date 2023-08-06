@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -16,7 +17,7 @@ func (conf *RecordConfig) API_list(w http.ResponseWriter, r *http.Request) {
 	var err error
 	recorder := conf.getRecorderConfigByType(t)
 	if recorder == nil {
-		for _, t = range []string{"flv", "mp4", "hls", "raw", "raw_audio"} {
+		for _, t = range []string{"flv", "mp4", "fmp4", "hls", "raw", "raw_audio"} {
 			recorder = conf.getRecorderConfigByType(t)
 			var fs []*VideoFileInfo
 			if fs, err = recorder.Tree(recorder.Path, 0); err == nil {
@@ -41,6 +42,8 @@ func (conf *RecordConfig) API_list(w http.ResponseWriter, r *http.Request) {
 func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	streamPath := query.Get("streamPath")
+	fileName := query.Get("fileName")
+	fragment := query.Get("fragment")
 	if streamPath == "" {
 		http.Error(w, "no streamPath", http.StatusBadRequest)
 		return
@@ -48,43 +51,40 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	t := query.Get("type")
 	var id string
 	var err error
+	var irecorder IRecorder
 	switch t {
 	case "":
 		t = "flv"
 		fallthrough
 	case "flv":
-		var flvRecoder FLVRecorder
-		flvRecoder.append = query.Get("append") != ""
-		err = flvRecoder.Start(streamPath)
-		id = flvRecoder.ID
+		irecorder = NewFLVRecorder()
 	case "mp4":
-		recorder := NewMP4Recorder()
-		err = recorder.Start(streamPath)
-		id = recorder.ID
+		irecorder = NewMP4Recorder()
+	case "fmp4":
+		irecorder = NewFMP4Recorder()
 	case "hls":
-		var recorder HLSRecorder
-		err = recorder.Start(streamPath)
-		id = recorder.ID
+		irecorder = NewHLSRecorder()
 	case "raw":
-		var recorder RawRecorder
-		recorder.append = query.Get("append") != ""
-		err = recorder.Start(streamPath)
-		id = recorder.ID
+		irecorder = NewRawRecorder()
 	case "raw_audio":
-		var recorder RawRecorder
-		recorder.IsAudio = true
-		recorder.append = query.Get("append") != ""
-		err = recorder.Start(streamPath)
-		id = recorder.ID
+		irecorder = NewRawAudioRecorder()
 	default:
 		http.Error(w, "type not supported", http.StatusBadRequest)
 		return
 	}
+	recorder := irecorder.GetRecorder()
+	if fragment != "" {
+		recorder.Fragment, err = time.ParseDuration(fragment)
+	}
+	recorder.FileName = fileName
+	recorder.append = query.Get("append") != ""
+	err = irecorder.Start(streamPath)
+	id = recorder.ID
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write([]byte(id))
+	fmt.Fprintf(w, id)
 }
 
 func (conf *RecordConfig) API_list_recording(w http.ResponseWriter, r *http.Request) {

@@ -22,27 +22,31 @@ type HLSRecorder struct {
 	MemoryTs
 }
 
+func NewHLSRecorder() (r *HLSRecorder) {
+	r = &HLSRecorder{}
+	r.Record = RecordPluginConfig.Hls
+	return r
+}
+
 func (h *HLSRecorder) Start(streamPath string) error {
-	h.Record = &RecordPluginConfig.Hls
 	h.ID = streamPath + "/hls"
-	if _, ok := RecordPluginConfig.recordings.Load(h.ID); ok {
-		return ErrRecordExist
-	}
-	h.BytesPool = make(util.BytesPool, 17)
-	return plugin.Subscribe(streamPath, h)
+	return h.start(h, streamPath, SUBTYPE_RAW)
 }
 
 func (h *HLSRecorder) OnEvent(event any) {
 	var err error
 	defer func() {
 		if err != nil {
-			h.Error("HLSRecorder Stop", zap.Error(err))
-			h.Stop()
+			h.Stop(zap.Error(err))
 		}
 	}()
-	h.Recorder.OnEvent(event)
 	switch v := event.(type) {
 	case *HLSRecorder:
+		h.BytesPool = make(util.BytesPool, 17)
+		if h.Writer, err = h.createFile(); err != nil {
+			return
+		}
+		h.SetIO(h.Writer)
 		h.playlist = hls.Playlist{
 			Writer:         h.Writer,
 			Version:        3,
@@ -52,12 +56,11 @@ func (h *HLSRecorder) OnEvent(event any) {
 		if err = h.playlist.Init(); err != nil {
 			return
 		}
-		if err = h.createHlsTsSegmentFile(); err != nil {
-			h.Stop()
+		if h.File, err = h.CreateFile(); err != nil {
 			return
 		}
-		go h.start()
 	case AudioFrame:
+		h.Recorder.OnEvent(event)
 		pes := &mpegts.MpegtsPESFrame{
 			Pid:                       mpegts.PID_AUDIO,
 			IsKeyFrame:                false,
@@ -65,18 +68,12 @@ func (h *HLSRecorder) OnEvent(event any) {
 			ProgramClockReferenceBase: uint64(v.DTS),
 		}
 		h.WriteAudioFrame(v, pes)
-		h.BLL.WriteTo(h)
+		h.BLL.WriteTo(h.File)
 		h.Recycle()
 		h.Clear()
 		h.audio_cc = pes.ContinuityCounter
 	case VideoFrame:
-		if h.Fragment != 0 && h.newFile {
-			h.newFile = false
-			h.Close()
-			if err = h.createHlsTsSegmentFile(); err != nil {
-				return
-			}
-		}
+		h.Recorder.OnEvent(event)
 		pes := &mpegts.MpegtsPESFrame{
 			Pid:                       mpegts.PID_VIDEO,
 			IsKeyFrame:                v.IFrame,
@@ -86,21 +83,25 @@ func (h *HLSRecorder) OnEvent(event any) {
 		if err = h.WriteVideoFrame(v, pes); err != nil {
 			return
 		}
-		h.BLL.WriteTo(h)
+		h.BLL.WriteTo(h.File)
 		h.Recycle()
 		h.Clear()
 		h.video_cc = pes.ContinuityCounter
+	default:
+		h.Recorder.OnEvent(v)
 	}
 }
 
 // 创建一个新的ts文件
-func (h *HLSRecorder) createHlsTsSegmentFile() (err error) {
+func (h *HLSRecorder) CreateFile() (fw FileWr, err error) {
 	tsFilename := strconv.FormatInt(time.Now().Unix(), 10) + ".ts"
-	fw, err := h.CreateFileFn(filepath.Join(h.Stream.Path, tsFilename), false)
+	filePath := filepath.Join(h.Stream.Path, tsFilename)
+	fw, err = h.CreateFileFn(filePath, false)
 	if err != nil {
-		return err
+		h.Error("create file", zap.String("path", filePath), zap.Error(err))
+		return
 	}
-	h.SetIO(fw)
+	h.Info("create file", zap.String("path", filePath))
 	inf := hls.PlaylistInf{
 		Duration: h.Fragment.Seconds(),
 		Title:    tsFilename,
@@ -109,7 +110,7 @@ func (h *HLSRecorder) createHlsTsSegmentFile() (err error) {
 		return
 	}
 	if err = mpegts.WriteDefaultPATPacket(fw); err != nil {
-		return err
+		return
 	}
 	var vcodec codec.VideoCodecID = 0
 	var acodec codec.AudioCodecID = 0
@@ -120,5 +121,5 @@ func (h *HLSRecorder) createHlsTsSegmentFile() (err error) {
 		acodec = h.Audio.CodecID
 	}
 	mpegts.WritePMTPacket(fw, vcodec, acodec)
-	return err
+	return
 }

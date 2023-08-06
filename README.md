@@ -61,7 +61,7 @@ record:
 
 - `/record/api/list/recording` 罗列所有正在录制中的流的信息
 - `/record/api/list?type=flv` 罗列所有录制的flv文件
-- `/record/api/start?type=flv&streamPath=live/rtc` 开始录制某个流,返回一个字符串用于停止录制用的id
+- `/record/api/start?type=flv&streamPath=live/rtc&fileName=xxx` 开始录制某个流,返回一个字符串用于停止录制用的id(fileName是可选的，且只用于非切片情况)
 - `/record/api/stop?id=xxx` 停止录制某个流
 
 其中将type值改为mp4则录制成fmp4格式。

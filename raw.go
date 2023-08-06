@@ -1,11 +1,6 @@
 package record
 
 import (
-	"path/filepath"
-	"strconv"
-	"time"
-
-	"go.uber.org/zap"
 	. "m7s.live/engine/v4"
 	"m7s.live/engine/v4/codec"
 	"m7s.live/engine/v4/track"
@@ -16,38 +11,32 @@ type RawRecorder struct {
 	IsAudio bool
 }
 
+func NewRawRecorder() (r *RawRecorder) {
+	r = &RawRecorder{}
+	r.Record = RecordPluginConfig.Raw
+	return r
+}
+
+func NewRawAudioRecorder() (r *RawRecorder) {
+	r = &RawRecorder{IsAudio: true}
+	r.Record = RecordPluginConfig.RawAudio
+	return r
+}
+
 func (r *RawRecorder) Start(streamPath string) error {
-	if r.IsAudio {
-		r.Record = &RecordPluginConfig.RawAudio
-	} else {
-		r.Record = &RecordPluginConfig.Raw
-	}
 	r.ID = streamPath + "/raw"
 	if r.IsAudio {
 		r.ID += "_audio"
 	}
-	if _, ok := RecordPluginConfig.recordings.Load(r.ID); ok {
-		return ErrRecordExist
-	}
-	return plugin.Subscribe(streamPath, r)
+	return r.start(r, streamPath, SUBTYPE_RAW)
 }
 
 func (r *RawRecorder) OnEvent(event any) {
 	switch v := event.(type) {
+	case FileWr:
+		r.SetIO(v)
 	case *RawRecorder:
-		filename := strconv.FormatInt(time.Now().Unix(), 10) + r.Ext
-		if r.Fragment == 0 {
-			filename = r.Stream.Path + r.Ext
-		} else {
-			filename = filepath.Join(r.Stream.Path, filename)
-		}
-		if file, err := r.CreateFileFn(filename, r.append); err == nil {
-			r.SetIO(file)
-		} else {
-			r.Error("create file failed", zap.Error(err))
-			r.Stop()
-		}
-		go r.start()
+		r.Recorder.OnEvent(event)
 	case *track.Video:
 		if r.IsAudio {
 			break
@@ -76,26 +65,10 @@ func (r *RawRecorder) OnEvent(event any) {
 		}
 		r.AddTrack(v)
 	case AudioFrame:
-		if r.Fragment > 0 {
-			if r.cut(v.AbsTime); r.newFile {
-				r.newFile = false
-				r.Close()
-				if file, err := r.CreateFileFn(filepath.Join(r.Stream.Path, strconv.FormatInt(time.Now().Unix(), 10)+r.Ext), false); err == nil {
-					r.SetIO(file)
-				}
-			}
-		}
+		r.Recorder.OnEvent(event)
 		v.WriteRawTo(r)
 	case VideoFrame:
-		if r.Fragment > 0 && v.IFrame {
-			if r.cut(v.AbsTime); r.newFile {
-				r.newFile = false
-				r.Close()
-				if file, err := r.CreateFileFn(filepath.Join(r.Stream.Path, strconv.FormatInt(time.Now().Unix(), 10)+r.Ext), false); err == nil {
-					r.SetIO(file)
-				}
-			}
-		}
+		r.Recorder.OnEvent(event)
 		v.WriteAnnexBTo(r)
 	default:
 		r.IO.OnEvent(v)

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"m7s.live/engine/v4"
+	"m7s.live/engine/v4/util"
 )
 
 type FileWr interface {
@@ -35,7 +35,7 @@ type Record struct {
 	fs            http.Handler
 	CreateFileFn  func(filename string, append bool) (FileWr, error) `json:"-" yaml:"-"`
 	GetDurationFn func(file io.ReadSeeker) uint32                    `json:"-" yaml:"-"`
-	recording     map[string]engine.ISubscriber
+	recording     map[string]IRecorder
 }
 
 func (r *Record) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -43,14 +43,11 @@ func (r *Record) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Record) NeedRecord(streamPath string) bool {
-	if _, ok := r.recording[streamPath]; ok {
-		return false
-	}
 	return r.AutoRecord && (r.filterReg == nil || r.filterReg.MatchString(streamPath))
 }
 
 func (r *Record) Init() {
-	r.recording = make(map[string]engine.ISubscriber)
+	r.recording = make(map[string]IRecorder)
 	os.MkdirAll(r.Path, 0766)
 	if r.Filter != "" {
 		r.filterReg = regexp.MustCompile(r.Filter)
@@ -58,16 +55,10 @@ func (r *Record) Init() {
 	r.fs = http.FileServer(http.Dir(r.Path))
 	r.CreateFileFn = func(filename string, append bool) (file FileWr, err error) {
 		filePath := filepath.Join(r.Path, filename)
-		flag := os.O_CREATE
-		if append {
-			flag = flag | os.O_RDWR | os.O_APPEND
-		} else {
-			flag = flag | os.O_RDWR | os.O_TRUNC
-		}
 		if err = os.MkdirAll(filepath.Dir(filePath), 0766); err != nil {
 			return file, err
 		}
-		file, err = os.OpenFile(filePath, flag, 0766)
+		file, err = os.OpenFile(filePath, os.O_CREATE | os.O_RDWR | util.Conditoinal(append, os.O_APPEND, os.O_TRUNC), 0766)
 		return
 	}
 }

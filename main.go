@@ -17,6 +17,7 @@ type RecordConfig struct {
 	config.Subscribe
 	Flv        Record
 	Mp4        Record
+	Fmp4       Record
 	Hls        Record
 	Raw        Record
 	RawAudio   Record
@@ -32,6 +33,10 @@ var RecordPluginConfig = &RecordConfig{
 		Path:          "record/flv",
 		Ext:           ".flv",
 		GetDurationFn: getFLVDuration,
+	},
+	Fmp4: Record{
+		Path: "record/fmp4",
+		Ext:  ".mp4",
 	},
 	Mp4: Record{
 		Path: "record/mp4",
@@ -58,43 +63,29 @@ func (conf *RecordConfig) OnEvent(event any) {
 	case FirstConfig, config.Config:
 		conf.Flv.Init()
 		conf.Mp4.Init()
+		conf.Fmp4.Init()
 		conf.Hls.Init()
 		conf.Raw.Init()
 		conf.RawAudio.Init()
-	case SEclose:
-		streamPath := v.Target.Path
-		delete(conf.Flv.recording, streamPath)
-		delete(conf.Mp4.recording, streamPath)
-		delete(conf.Hls.recording, streamPath)
-		delete(conf.Raw.recording, streamPath)
-		delete(conf.RawAudio.recording, streamPath)
 	case SEpublish:
 		streamPath := v.Target.Path
 		if conf.Flv.NeedRecord(streamPath) {
-			var flv FLVRecorder
-			conf.Flv.recording[streamPath] = &flv
-			go flv.Start(streamPath)
+			go NewFLVRecorder().Start(streamPath)
 		}
 		if conf.Mp4.NeedRecord(streamPath) {
-			recoder := NewMP4Recorder()
-			conf.Mp4.recording[streamPath] = recoder
-			go recoder.Start(streamPath)
+			go NewMP4Recorder().Start(streamPath)
+		}
+		if conf.Fmp4.NeedRecord(streamPath) {
+			go NewFMP4Recorder().Start(streamPath)
 		}
 		if conf.Hls.NeedRecord(streamPath) {
-			var hls HLSRecorder
-			conf.Hls.recording[streamPath] = &hls
-			go hls.Start(streamPath)
+			go NewHLSRecorder().Start(streamPath)
 		}
 		if conf.Raw.NeedRecord(streamPath) {
-			var raw RawRecorder
-			conf.Raw.recording[streamPath] = &raw
-			go raw.Start(streamPath)
+			go NewRawRecorder().Start(streamPath)
 		}
 		if conf.RawAudio.NeedRecord(streamPath) {
-			var raw RawRecorder
-			raw.IsAudio = true
-			conf.RawAudio.recording[streamPath] = &raw
-			go raw.Start(streamPath)
+			go NewRawAudioRecorder().Start(streamPath)
 		}
 	}
 }
@@ -104,6 +95,8 @@ func (conf *RecordConfig) getRecorderConfigByType(t string) (recorder *Record) {
 		recorder = &conf.Flv
 	case "mp4":
 		recorder = &conf.Mp4
+	case "fmp4":
+		recorder = &conf.Fmp4
 	case "hls":
 		recorder = &conf.Hls
 	case "raw":

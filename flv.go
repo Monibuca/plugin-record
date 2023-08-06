@@ -4,8 +4,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"path/filepath"
-	"strconv"
 	"time"
 
 	"go.uber.org/zap"
@@ -22,22 +20,18 @@ type FLVRecorder struct {
 	duration      int64
 }
 
+func NewFLVRecorder() (r *FLVRecorder) {
+	r = &FLVRecorder{}
+	r.Record = RecordPluginConfig.Flv
+	return r
+}
+
 func (r *FLVRecorder) Start(streamPath string) (err error) {
-	r.Record = &RecordPluginConfig.Flv
 	r.ID = streamPath + "/flv"
-	if _, ok := RecordPluginConfig.recordings.Load(r.ID); ok {
-		return ErrRecordExist
-	}
-	return plugin.Subscribe(streamPath, r)
+	return r.start(r, streamPath, SUBTYPE_FLV)
 }
 
-func (r *FLVRecorder) start() {
-	RecordPluginConfig.recordings.Store(r.ID, r)
-	r.PlayFLV()
-	RecordPluginConfig.recordings.Delete(r.ID)
-}
-
-func (r *FLVRecorder) writeMetaData(file *os.File, duration int64) {
+func (r *FLVRecorder) writeMetaData(file FileWr, duration int64) {
 	defer file.Close()
 	at, vt := r.Audio, r.Video
 	hasAudio, hasVideo := at != nil, vt != nil
@@ -127,46 +121,34 @@ func (r *FLVRecorder) writeMetaData(file *os.File, duration int64) {
 }
 
 func (r *FLVRecorder) OnEvent(event any) {
+	r.Recorder.OnEvent(event)
 	switch v := event.(type) {
-	case ISubscriber:
-		filename := strconv.FormatInt(time.Now().Unix(), 10) + r.Ext
-		if r.Fragment == 0 {
-			filename = r.Stream.Path + r.Ext
+	case FileWr:
+		// 写入文件头
+		if !r.append {
+			v.Write(codec.FLVHeader)
 		} else {
-			filename = filepath.Join(r.Stream.Path, filename)
-		}
-		if file, err := r.CreateFileFn(filename, r.append); err == nil {
-			r.SetIO(file)
-			// 写入文件头
-			if !r.append {
-				r.Write(codec.FLVHeader)
+			if _, err := v.Seek(-4, io.SeekEnd); err != nil {
+				r.Error("seek file failed", zap.Error(err))
+				v.Write(codec.FLVHeader)
 			} else {
-				if _, err = file.Seek(-4, io.SeekEnd); err != nil {
-					r.Error("seek file failed", zap.Error(err))
-					r.Write(codec.FLVHeader)
-				} else {
-					tmp := make(util.Buffer, 4)
-					tmp2 := tmp
-					file.Read(tmp)
-					tagSize := tmp.ReadUint32()
-					tmp = tmp2
-					file.Seek(int64(tagSize), io.SeekEnd)
-					file.Read(tmp2)
-					ts := tmp2.ReadUint24() | (uint32(tmp[3]) << 24)
-					r.Info("append flv", zap.String("filename", filename), zap.Uint32("last tagSize", tagSize), zap.Uint32("last ts", ts))
-					if r.VideoReader != nil {
-						r.VideoReader.StartTs = time.Duration(ts) * time.Millisecond
-					}
-					if r.AudioReader != nil {
-						r.AudioReader.StartTs = time.Duration(ts) * time.Millisecond
-					}
-					file.Seek(0, io.SeekEnd)
+				tmp := make(util.Buffer, 4)
+				tmp2 := tmp
+				v.Read(tmp)
+				tagSize := tmp.ReadUint32()
+				tmp = tmp2
+				v.Seek(int64(tagSize), io.SeekEnd)
+				v.Read(tmp2)
+				ts := tmp2.ReadUint24() | (uint32(tmp[3]) << 24)
+				r.Info("append flv", zap.Uint32("last tagSize", tagSize), zap.Uint32("last ts", ts))
+				if r.VideoReader != nil {
+					r.VideoReader.StartTs = time.Duration(ts) * time.Millisecond
 				}
+				if r.AudioReader != nil {
+					r.AudioReader.StartTs = time.Duration(ts) * time.Millisecond
+				}
+				v.Seek(0, io.SeekEnd)
 			}
-			go r.start()
-		} else {
-			r.Error("create file failed", zap.Error(err))
-			r.Stop()
 		}
 	case FLVFrame:
 		check := false
@@ -186,15 +168,15 @@ func (r *FLVRecorder) OnEvent(event any) {
 		if r.duration = int64(absTime); r.Fragment > 0 && check && time.Duration(r.duration)*time.Millisecond >= r.Fragment {
 			r.Close()
 			r.Offset = 0
-			if file, err := r.CreateFileFn(filepath.Join(r.Stream.Path, strconv.FormatInt(time.Now().Unix(), 10)+r.Ext), false); err == nil {
-				r.SetIO(file)
-				r.Write(codec.FLVHeader)
+			if file, err := r.createFile(); err == nil {
+				r.File = file
+				file.Write(codec.FLVHeader)
 				var dcflv net.Buffers
 				if r.VideoReader != nil {
 					r.VideoReader.ResetAbsTime()
 					dcflv = codec.VideoAVCC2FLV(0, r.VideoReader.Track.SequenceHead)
 					flv := append(dcflv, codec.VideoAVCC2FLV(0, r.VideoReader.Value.AVCC.ToBuffers()...)...)
-					flv.WriteTo(r)
+					flv.WriteTo(file)
 				}
 				if r.AudioReader != nil {
 					r.AudioReader.ResetAbsTime()
@@ -202,32 +184,27 @@ func (r *FLVRecorder) OnEvent(event any) {
 						dcflv = codec.AudioAVCC2FLV(0, r.AudioReader.Track.SequenceHead)
 					}
 					flv := append(dcflv, codec.AudioAVCC2FLV(0, r.AudioReader.Value.AVCC.ToBuffers()...)...)
-					flv.WriteTo(r)
+					flv.WriteTo(file)
 				}
 				return
 			}
 		}
-		if n, err := v.WriteTo(r); err != nil {
+		if n, err := v.WriteTo(r.File); err != nil {
 			r.Error("write file failed", zap.Error(err))
-			r.Stop()
+			r.Stop(zap.Error(err))
 		} else {
 			r.Offset += n
 		}
-	default:
-		r.Subscriber.OnEvent(event)
 	}
 }
 
-func (r *FLVRecorder) SetIO(file any) {
-	r.Subscriber.SetIO(file)
-	r.Closer = r
-}
-
 func (r *FLVRecorder) Close() error {
-	if file, ok := r.Writer.(*os.File); ok && !r.append {
-		go r.writeMetaData(file, r.duration)
-	} else if closer, ok := r.Writer.(io.Closer); ok {
-		return closer.Close()
+	if r.File != nil {
+		if !r.append {
+			go r.writeMetaData(r.File, r.duration)
+		} else {
+			return r.File.Close()
+		}
 	}
 	return nil
 }
