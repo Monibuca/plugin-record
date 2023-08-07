@@ -1,6 +1,8 @@
 package record
 
 import (
+	"net"
+
 	"github.com/yapingcat/gomedia/go-mp4"
 	"go.uber.org/zap"
 	. "m7s.live/engine/v4"
@@ -72,7 +74,13 @@ func (r *MP4Recorder) OnEvent(event any) {
 		}
 	case AudioFrame:
 		if r.audioId != 0 {
-			r.Write(r.audioId, util.ConcatBuffers(v.GetADTS()), uint64(v.AbsTime+(v.PTS-v.DTS)/90), uint64(v.AbsTime))
+			var audioData []byte
+			if v.ADTS == nil {
+				audioData = v.AUList.ToBytes()
+			} else {
+				audioData = util.ConcatBuffers(append(net.Buffers{v.ADTS.Value}, v.AUList.ToBuffers()...))
+			}
+			r.Write(r.audioId, audioData, uint64(v.AbsTime+(v.PTS-v.DTS)/90), uint64(v.AbsTime))
 		}
 	case VideoFrame:
 		if r.videoId != 0 {
