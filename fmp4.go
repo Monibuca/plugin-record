@@ -15,7 +15,7 @@ type mediaContext struct {
 
 func (m *mediaContext) push(recoder *FMP4Recorder, dt uint32, dur uint32, data []byte, flags uint32) {
 	if m.fragment != nil && dt-m.ts > 1000 {
-		m.fragment.Encode(recoder)
+		m.fragment.Encode(recoder.File)
 		m.fragment = nil
 	}
 	if m.fragment == nil {
@@ -36,11 +36,11 @@ func (m *mediaContext) push(recoder *FMP4Recorder, dt uint32, dur uint32, data [
 
 type FMP4Recorder struct {
 	Recorder
-	*mp4.InitSegment `json:"-" yaml:"-"`
-	video            mediaContext
-	audio            mediaContext
-	seqNumber        uint32
-	ftyp             *mp4.FtypBox
+	initSegment *mp4.InitSegment `json:"-" yaml:"-"`
+	video       mediaContext
+	audio       mediaContext
+	seqNumber   uint32
+	ftyp        *mp4.FtypBox
 }
 
 func NewFMP4Recorder() *FMP4Recorder {
@@ -73,10 +73,10 @@ func (r *FMP4Recorder) OnEvent(event any) {
 	r.Recorder.OnEvent(event)
 	switch v := event.(type) {
 	case FileWr:
-		r.InitSegment = mp4.CreateEmptyInit()
-		r.Moov.Mvhd.NextTrackID = 1
+		r.initSegment = mp4.CreateEmptyInit()
+		r.initSegment.Moov.Mvhd.NextTrackID = 1
 		if r.VideoReader != nil {
-			moov := r.Moov
+			moov := r.initSegment.Moov
 			trackID := moov.Mvhd.NextTrackID
 			moov.Mvhd.NextTrackID++
 			newTrak := mp4.CreateEmptyTrak(trackID, 1000, "video", "chi")
@@ -97,7 +97,7 @@ func (r *FMP4Recorder) OnEvent(event any) {
 			}
 		}
 		if r.AudioReader != nil {
-			moov := r.Moov
+			moov := r.initSegment.Moov
 			trackID := moov.Mvhd.NextTrackID
 			moov.Mvhd.NextTrackID++
 			newTrak := mp4.CreateEmptyTrak(trackID, 1000, "audio", "chi")
@@ -128,8 +128,8 @@ func (r *FMP4Recorder) OnEvent(event any) {
 				stsd.AddChild(pcmu)
 			}
 		}
-		r.ftyp.Encode(r)
-		r.Moov.Encode(r)
+		r.ftyp.Encode(v)
+		r.initSegment.Moov.Encode(v)
 		r.seqNumber = 0
 	case AudioFrame:
 		if r.audio.trackId != 0 {

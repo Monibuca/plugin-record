@@ -32,7 +32,12 @@ func (h *HLSRecorder) Start(streamPath string) error {
 	h.ID = streamPath + "/hls"
 	return h.start(h, streamPath, SUBTYPE_RAW)
 }
-
+func (r *HLSRecorder) Close() (err error) {
+	if r.File != nil {
+		err = r.File.Close()
+	}
+	return
+}
 func (h *HLSRecorder) OnEvent(event any) {
 	var err error
 	defer func() {

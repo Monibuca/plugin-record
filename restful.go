@@ -2,10 +2,10 @@ package record
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
+	"go.uber.org/zap"
 	. "m7s.live/engine/v4"
 	"m7s.live/engine/v4/util"
 )
@@ -74,34 +74,37 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	}
 	recorder := irecorder.GetRecorder()
 	if fragment != "" {
-		recorder.Fragment, err = time.ParseDuration(fragment)
+		f, err := time.ParseDuration(fragment)
+		if err != nil {
+			recorder.Fragment = f
+		}
 	}
 	recorder.FileName = fileName
 	recorder.append = query.Get("append") != ""
 	err = irecorder.Start(streamPath)
 	id = recorder.ID
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		util.ReturnError(util.APIErrorInternal, err.Error(), w, r)
 		return
 	}
-	fmt.Fprintf(w, id)
+	util.ReturnError(util.APIErrorNone, id, w, r)
 }
 
 func (conf *RecordConfig) API_list_recording(w http.ResponseWriter, r *http.Request) {
-	util.ReturnJson(func() (recordings []any) {
+	util.ReturnFetchValue(func() (recordings []any) {
 		conf.recordings.Range(func(key, value any) bool {
 			recordings = append(recordings, value)
 			return true
 		})
 		return
-	}, time.Second, w, r)
+	}, w, r)
 }
 
 func (conf *RecordConfig) API_stop(w http.ResponseWriter, r *http.Request) {
 	if recorder, ok := conf.recordings.Load(r.URL.Query().Get("id")); ok {
-		recorder.(ISubscriber).Stop()
-		w.Write([]byte("ok"))
+		recorder.(ISubscriber).Stop(zap.String("reason", "api"))
+		util.ReturnOK(w, r)
 		return
 	}
-	http.Error(w, "no such recorder", http.StatusBadRequest)
+	util.ReturnError(util.APIErrorNotFound, "no such recorder", w, r)
 }

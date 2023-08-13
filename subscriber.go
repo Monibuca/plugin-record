@@ -35,13 +35,6 @@ func (r *Recorder) CreateFile() (FileWr, error) {
 	return r.createFile()
 }
 
-func (r *Recorder) Close() error {
-	if r.File != nil {
-		return r.File.Close()
-	}
-	return nil
-}
-
 func (r *Recorder) createFile() (f FileWr, err error) {
 	filePath := r.getFileName(r.Stream.Path) + r.Ext
 	f, err = r.CreateFileFn(filePath, r.append)
@@ -77,7 +70,6 @@ func (r *Recorder) start(re IRecorder, streamPath string, subType byte) (err err
 			r.PlayBlock(subType)
 			RecordPluginConfig.recordings.Delete(r.ID)
 			delete(r.recording, streamPath)
-			re.Close()
 		}()
 	}
 	return
@@ -95,6 +87,11 @@ func (r *Recorder) cut(absTime uint32) {
 		}
 	}
 }
+
+// func (r *Recorder) Stop(reason ...zap.Field) {
+// 	r.Close()
+// 	r.Subscriber.Stop(reason...)
+// }
 
 func (r *Recorder) OnEvent(event any) {
 	switch v := event.(type) {

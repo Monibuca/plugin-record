@@ -30,7 +30,12 @@ func (r *RawRecorder) Start(streamPath string) error {
 	}
 	return r.start(r, streamPath, SUBTYPE_RAW)
 }
-
+func (r *RawRecorder) Close() (err error) {
+	if r.File != nil {
+		err = r.File.Close()
+	}
+	return
+}
 func (r *RawRecorder) OnEvent(event any) {
 	switch v := event.(type) {
 	case FileWr:

@@ -16,7 +16,7 @@ import (
 
 - 配置中的path 表示要保存的文件的根路径，可以使用相对路径或者绝对路径
 - filter 代表要过滤的StreamPath正则表达式，如果不匹配，则表示不录制。为空代表不进行过滤
-- fragment表示分片大小（秒），0代表不分片
+- fragment表示分片大小（20s代表20秒，1m代表1分钟，可以组合），0代表不分片
 
 ```yaml
 record:
@@ -51,7 +51,7 @@ record:
 
 - `/record/api/list/recording` 罗列所有正在录制中的流的信息
 - `/record/api/list?type=[flv|mp4|hls|raw]` 罗列所有录制的flv|mp4|m3u8|raw文件
-- `/record/api/start?type=flv&streamPath=live/rtc&fileName=xxx&fragment=10s` 开始录制某个流,返回一个字符串用于停止录制用的id(fileName是可选的，且只用于非切片情况,fragment用于覆盖配置中的切片时间，是可选的)
+- `/record/api/start?type=flv&streamPath=live/rtc&fileName=xxx&fragment=10s` 开始录制某个流,返回一个字符串用于停止录制用的id(fileName是可选的，且只用于非切片情况,fragment用于覆盖配置中的切片时间，是可选的，如果fileName和fragment都存在，则忽略fileName)
 - `/record/api/stop?id=xxx` 停止录制某个流
 
 ## 点播功能
