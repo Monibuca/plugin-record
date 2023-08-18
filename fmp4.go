@@ -128,6 +128,11 @@ func (r *FMP4Recorder) OnEvent(event any) {
 				stsd.AddChild(pcmu)
 			}
 		}
+		if r.ftyp == nil {
+			r.ftyp = mp4.NewFtyp("isom", 0x200, []string{
+				"isom", "iso2", "avc1", "mp41",
+			})
+		}
 		r.ftyp.Encode(v)
 		r.initSegment.Moov.Encode(v)
 		r.seqNumber = 0
