@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"m7s.live/engine/v4/util"
@@ -19,6 +20,19 @@ type FileWr interface {
 	io.Seeker
 	io.Closer
 }
+
+var WritingFiles sync.Map
+
+type FileWriter struct {
+	filePath string
+	*os.File
+}
+
+func (f *FileWriter) Close() error {
+	WritingFiles.Delete(f.File.Name())
+	return f.File.Close()
+}
+
 type VideoFileInfo struct {
 	Path     string
 	Size     int64
@@ -35,7 +49,6 @@ type Record struct {
 	fs            http.Handler
 	CreateFileFn  func(filename string, append bool) (FileWr, error) `json:"-" yaml:"-"`
 	GetDurationFn func(file io.ReadSeeker) uint32                    `json:"-" yaml:"-"`
-	recording     map[string]IRecorder
 }
 
 func (r *Record) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -47,18 +60,27 @@ func (r *Record) NeedRecord(streamPath string) bool {
 }
 
 func (r *Record) Init() {
-	r.recording = make(map[string]IRecorder)
-	os.MkdirAll(r.Path, 0766)
+	os.MkdirAll(r.Path, 0666)
 	if r.Filter != "" {
 		r.filterReg = regexp.MustCompile(r.Filter)
 	}
 	r.fs = http.FileServer(http.Dir(r.Path))
 	r.CreateFileFn = func(filename string, append bool) (file FileWr, err error) {
 		filePath := filepath.Join(r.Path, filename)
-		if err = os.MkdirAll(filepath.Dir(filePath), 0766); err != nil {
+		if err = os.MkdirAll(filepath.Dir(filePath), 0666); err != nil {
 			return file, err
 		}
-		file, err = os.OpenFile(filePath, os.O_CREATE | os.O_RDWR | util.Conditoinal(append, os.O_APPEND, os.O_TRUNC), 0766)
+		fw := &FileWriter{filePath: filePath}
+		if !append {
+			if _, loaded := WritingFiles.LoadOrStore(filePath, fw); loaded {
+				return file, ErrRecordExist
+			}
+		}
+		file, err = os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|util.Conditoinal(append, os.O_APPEND, os.O_TRUNC), 0666)
+		if err == nil && !append {
+			fw.File = file.(*os.File)
+			return fw, nil
+		}
 		return
 	}
 }

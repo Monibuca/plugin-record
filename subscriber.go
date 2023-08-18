@@ -24,6 +24,7 @@ type Recorder struct {
 	Record   `json:"-" yaml:"-"`
 	File     FileWr `json:"-" yaml:"-"`
 	FileName string // 自定义文件名，分段录像无效
+	filePath string // 文件路径
 	append   bool   // 是否追加模式
 }
 
@@ -36,12 +37,12 @@ func (r *Recorder) CreateFile() (FileWr, error) {
 }
 
 func (r *Recorder) createFile() (f FileWr, err error) {
-	filePath := r.getFileName(r.Stream.Path) + r.Ext
-	f, err = r.CreateFileFn(filePath, r.append)
+	r.filePath = r.getFileName(r.Stream.Path) + r.Ext
+	f, err = r.CreateFileFn(r.filePath, r.append)
 	if err == nil {
-		r.Info("create file", zap.String("path", filePath))
+		r.Info("create file", zap.String("path", r.filePath))
 	} else {
-		r.Error("create file", zap.String("path", filePath), zap.Error(err))
+		r.Error("create file", zap.String("path", r.filePath), zap.Error(err))
 	}
 	return
 }
@@ -64,12 +65,10 @@ func (r *Recorder) start(re IRecorder, streamPath string, subType byte) (err err
 		if _, loaded := RecordPluginConfig.recordings.LoadOrStore(r.ID, re); loaded {
 			return ErrRecordExist
 		}
-		r.recording[streamPath] = re
 		r.Closer = re
 		go func() {
 			r.PlayBlock(subType)
 			RecordPluginConfig.recordings.Delete(r.ID)
-			delete(r.recording, streamPath)
 		}()
 	}
 	return
