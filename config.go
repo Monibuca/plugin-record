@@ -60,14 +60,14 @@ func (r *Record) NeedRecord(streamPath string) bool {
 }
 
 func (r *Record) Init() {
-	os.MkdirAll(r.Path, 0666)
+	os.MkdirAll(r.Path, 0766)
 	if r.Filter != "" {
 		r.filterReg = regexp.MustCompile(r.Filter)
 	}
 	r.fs = http.FileServer(http.Dir(r.Path))
 	r.CreateFileFn = func(filename string, append bool) (file FileWr, err error) {
 		filePath := filepath.Join(r.Path, filename)
-		if err = os.MkdirAll(filepath.Dir(filePath), 0666); err != nil {
+		if err = os.MkdirAll(filepath.Dir(filePath), 0766); err != nil {
 			return file, err
 		}
 		fw := &FileWriter{filePath: filePath}

@@ -45,7 +45,7 @@ func (r *MP4Recorder) setTracks() {
 	if r.Audio != nil {
 		switch r.Audio.CodecID {
 		case codec.CodecID_AAC:
-			r.audioId = r.AddAudioTrack(mp4.MP4_CODEC_AAC)
+			r.audioId = r.AddAudioTrack(mp4.MP4_CODEC_AAC, mp4.WithExtraData(r.Audio.SequenceHead[2:]))
 		case codec.CodecID_PCMA:
 			r.audioId = r.AddAudioTrack(mp4.MP4_CODEC_G711A)
 		case codec.CodecID_PCMU:
@@ -55,9 +55,9 @@ func (r *MP4Recorder) setTracks() {
 	if r.Video != nil {
 		switch r.Video.CodecID {
 		case codec.CodecID_H264:
-			r.videoId = r.AddVideoTrack(mp4.MP4_CODEC_H264)
+			r.videoId = r.AddVideoTrack(mp4.MP4_CODEC_H264, mp4.WithExtraData(r.Video.SequenceHead[5:]))
 		case codec.CodecID_H265:
-			r.videoId = r.AddVideoTrack(mp4.MP4_CODEC_H265)
+			r.videoId = r.AddVideoTrack(mp4.MP4_CODEC_H265, mp4.WithExtraData(r.Video.SequenceHead[5:]))
 		}
 	}
 }
