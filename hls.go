@@ -48,7 +48,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 	switch v := event.(type) {
 	case *HLSRecorder:
 		h.BytesPool = make(util.BytesPool, 17)
-		if h.Writer, err = h.createFile(); err != nil {
+		if h.Writer, err = h.CreateFile(); err != nil {
 			return
 		}
 		h.SetIO(h.Writer)

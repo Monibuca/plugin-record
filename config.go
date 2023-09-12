@@ -1,6 +1,7 @@
 package record
 
 import (
+	"bufio"
 	"io"
 	"net/http"
 	"os"
@@ -25,12 +26,23 @@ var WritingFiles sync.Map
 
 type FileWriter struct {
 	filePath string
-	*os.File
+	io.Reader
+	io.Writer
+	io.Seeker
+	io.Closer
+	bufw *bufio.Writer
+}
+
+func (f *FileWriter) Seek(offset int64, whence int) (int64, error) {
+	if f.bufw != nil {
+		f.bufw.Flush()
+	}
+	return f.Seeker.Seek(offset, whence)
 }
 
 func (f *FileWriter) Close() error {
-	WritingFiles.Delete(f.File.Name())
-	return f.File.Close()
+	WritingFiles.Delete(f.filePath)
+	return f.Closer.Close()
 }
 
 type VideoFileInfo struct {
@@ -78,7 +90,10 @@ func (r *Record) Init() {
 		}
 		file, err = os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|util.Conditoinal(append, os.O_APPEND, os.O_TRUNC), 0666)
 		if err == nil && !append {
-			fw.File = file.(*os.File)
+			fw.Reader = file
+			fw.Writer = file
+			fw.Seeker = file
+			fw.Closer = file
 			return fw, nil
 		}
 		return

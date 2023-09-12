@@ -1,6 +1,7 @@
 package record
 
 import (
+	"bufio"
 	"io"
 	"path/filepath"
 	"strconv"
@@ -32,17 +33,22 @@ func (r *Recorder) GetRecorder() *Recorder {
 	return r
 }
 
-func (r *Recorder) CreateFile() (FileWr, error) {
-	return r.createFile()
-}
-
-func (r *Recorder) createFile() (f FileWr, err error) {
+func (r *Recorder) CreateFile() (f FileWr, err error) {
 	r.filePath = r.getFileName(r.Stream.Path) + r.Ext
 	f, err = r.CreateFileFn(r.filePath, r.append)
+	logFields := []zap.Field{zap.String("path", r.filePath)}
+	if fw, ok := f.(*FileWriter); ok && r.Config != nil {
+		if r.Config.WriteBufferSize > 0 {
+			logFields = append(logFields, zap.Int("bufferSize", r.Config.WriteBufferSize))
+			fw.bufw = bufio.NewWriterSize(fw.Writer, r.Config.WriteBufferSize)
+			fw.Writer = fw.bufw
+		}
+	}
 	if err == nil {
-		r.Info("create file", zap.String("path", r.filePath))
+		r.Info("create file", logFields...)
 	} else {
-		r.Error("create file", zap.String("path", r.filePath), zap.Error(err))
+		logFields = append(logFields, zap.Error(err))
+		r.Error("create file", logFields...)
 	}
 	return
 }
