@@ -1,8 +1,8 @@
 package record
 
 import (
-	"github.com/edgeware/mp4ff/aac"
-	"github.com/edgeware/mp4ff/mp4"
+	"github.com/Eyevinn/mp4ff/aac"
+	"github.com/Eyevinn/mp4ff/mp4"
 	. "m7s.live/engine/v4"
 	"m7s.live/engine/v4/codec"
 )
@@ -93,7 +93,7 @@ func (r *FMP4Recorder) OnEvent(event any) {
 				r.ftyp = mp4.NewFtyp("isom", 0x200, []string{
 					"isom", "iso2", "hvc1", "mp41",
 				})
-				newTrak.SetHEVCDescriptor("hvc1", r.Video.ParamaterSets[0:1], r.Video.ParamaterSets[1:2], r.Video.ParamaterSets[2:3], true)
+				newTrak.SetHEVCDescriptor("hvc1", r.Video.ParamaterSets[0:1], r.Video.ParamaterSets[1:2], r.Video.ParamaterSets[2:3], nil, true)
 			}
 		}
 		if r.AudioReader != nil {
