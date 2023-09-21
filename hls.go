@@ -17,7 +17,6 @@ import (
 type HLSRecorder struct {
 	playlist           hls.Playlist
 	video_cc, audio_cc byte
-	packet             mpegts.MpegTsPESPacket
 	Recorder
 	MemoryTs
 }
@@ -48,7 +47,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 	switch v := event.(type) {
 	case *HLSRecorder:
 		h.BytesPool = make(util.BytesPool, 17)
-		if h.Writer, err = h.CreateFile(); err != nil {
+		if h.Writer, err = h.Recorder.CreateFile(); err != nil {
 			return
 		}
 		h.SetIO(h.Writer)
