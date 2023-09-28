@@ -1,6 +1,7 @@
 package record
 
 import (
+	"go.uber.org/zap"
 	. "m7s.live/engine/v4"
 	"m7s.live/engine/v4/codec"
 	"m7s.live/engine/v4/track"
@@ -71,10 +72,14 @@ func (r *RawRecorder) OnEvent(event any) {
 		r.AddTrack(v)
 	case AudioFrame:
 		r.Recorder.OnEvent(event)
-		v.WriteRawTo(r)
+		if _, err := v.WriteRawTo(r); err != nil {
+			r.Stop(zap.Error(err))
+		}
 	case VideoFrame:
 		r.Recorder.OnEvent(event)
-		v.WriteAnnexBTo(r)
+		if _, err := v.WriteAnnexBTo(r); err != nil {
+			r.Stop(zap.Error(err))
+		}
 	default:
 		r.IO.OnEvent(v)
 	}

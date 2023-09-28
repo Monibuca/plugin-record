@@ -72,7 +72,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 			ProgramClockReferenceBase: uint64(v.DTS),
 		}
 		h.WriteAudioFrame(v, pes)
-		h.BLL.WriteTo(h.File)
+		_, err = h.BLL.WriteTo(h.File)
 		h.Recycle()
 		h.Clear()
 		h.audio_cc = pes.ContinuityCounter
@@ -87,7 +87,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 		if err = h.WriteVideoFrame(v, pes); err != nil {
 			return
 		}
-		h.BLL.WriteTo(h.File)
+		_, err = h.BLL.WriteTo(h.File)
 		h.Recycle()
 		h.Clear()
 		h.video_cc = pes.ContinuityCounter

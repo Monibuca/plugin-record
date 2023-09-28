@@ -80,11 +80,15 @@ func (r *MP4Recorder) OnEvent(event any) {
 			} else {
 				audioData = util.ConcatBuffers(append(net.Buffers{v.ADTS.Value}, v.AUList.ToBuffers()...))
 			}
-			r.Write(r.audioId, audioData, uint64(v.AbsTime+(v.PTS-v.DTS)/90), uint64(v.AbsTime))
+			if err = r.Write(r.audioId, audioData, uint64(v.AbsTime+(v.PTS-v.DTS)/90), uint64(v.AbsTime)); err != nil {
+				r.Stop(zap.Error(err))
+			}
 		}
 	case VideoFrame:
 		if r.videoId != 0 {
-			r.Write(r.videoId, util.ConcatBuffers(v.GetAnnexB()), uint64(v.AbsTime+(v.PTS-v.DTS)/90), uint64(v.AbsTime))
+			if err = r.Write(r.videoId, util.ConcatBuffers(v.GetAnnexB()), uint64(v.AbsTime+(v.PTS-v.DTS)/90), uint64(v.AbsTime)); err != nil {
+				r.Stop(zap.Error(err))
+			}
 		}
 	}
 }
