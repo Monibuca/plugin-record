@@ -74,8 +74,7 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 	}
 	recorder := irecorder.GetRecorder()
 	if fragment != "" {
-		f, err := time.ParseDuration(fragment)
-		if err != nil {
+		if f, err := time.ParseDuration(fragment); err == nil {
 			recorder.Fragment = f
 		}
 	}
