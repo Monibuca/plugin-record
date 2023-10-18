@@ -15,8 +15,9 @@ import (
 )
 
 var config struct {
-	Path        string
-	AutoRecord  bool
+	Path       string
+	AutoRecord bool
+	AppendFlv  bool
 }
 var recordings sync.Map
 
@@ -34,7 +35,7 @@ type FileWr interface {
 }
 
 var ExtraConfig struct {
-	CreateFileFn func(filename string) (FileWr,error)
+	CreateFileFn     func(filename string) (FileWr, error)
 	AutoRecordFilter func(stream string) bool
 }
 
@@ -45,6 +46,9 @@ func init() {
 		HotConfig: map[string]func(interface{}){
 			"AutoRecord": func(v interface{}) {
 				config.AutoRecord = v.(bool)
+			},
+			"AppendFlv": func(v interface{}) {
+				config.AppendFlv = v.(bool)
 			},
 		},
 	}
@@ -128,7 +132,7 @@ func run() {
 
 func onPublish(p *Stream) {
 	if config.AutoRecord || (ExtraConfig.AutoRecordFilter != nil && ExtraConfig.AutoRecordFilter(p.StreamPath)) {
-		SaveFlv(p.StreamPath, false)
+		SaveFlv(p.StreamPath, config.AppendFlv)
 	}
 }
 
