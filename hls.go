@@ -1,9 +1,9 @@
 package record
 
 import (
+	"fmt"
 	"math"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"go.uber.org/zap"
@@ -16,6 +16,9 @@ import (
 
 type HLSRecorder struct {
 	playlist           hls.Playlist
+	tsStartTime        uint32
+	tsLastTime         uint32
+	tsTitle            string
 	video_cc, audio_cc byte
 	Recorder
 	MemoryTs
@@ -33,6 +36,12 @@ func (h *HLSRecorder) Start(streamPath string) error {
 }
 func (r *HLSRecorder) Close() (err error) {
 	if r.File != nil {
+		inf := hls.PlaylistInf{
+			Duration: float64(r.tsLastTime-r.tsStartTime) / 1000,
+			Title:    r.tsTitle,
+		}
+		r.playlist.WriteInf(inf)
+		r.tsStartTime = 0
 		err = r.File.Close()
 	}
 	return
@@ -64,6 +73,10 @@ func (h *HLSRecorder) OnEvent(event any) {
 			return
 		}
 	case AudioFrame:
+		if h.tsStartTime == 0 {
+			h.tsStartTime = v.AbsTime
+		} 
+		h.tsLastTime = v.AbsTime
 		h.Recorder.OnEvent(event)
 		pes := &mpegts.MpegtsPESFrame{
 			Pid:                       mpegts.PID_AUDIO,
@@ -77,6 +90,10 @@ func (h *HLSRecorder) OnEvent(event any) {
 		h.Clear()
 		h.audio_cc = pes.ContinuityCounter
 	case VideoFrame:
+		if h.tsStartTime == 0 {
+			h.tsStartTime = v.AbsTime
+		}
+		h.tsLastTime = v.AbsTime
 		h.Recorder.OnEvent(event)
 		pes := &mpegts.MpegtsPESFrame{
 			Pid:                       mpegts.PID_VIDEO,
@@ -98,21 +115,15 @@ func (h *HLSRecorder) OnEvent(event any) {
 
 // 创建一个新的ts文件
 func (h *HLSRecorder) CreateFile() (fw FileWr, err error) {
-	tsFilename := strconv.FormatInt(time.Now().Unix(), 10) + ".ts"
-	filePath := filepath.Join(h.Stream.Path, tsFilename)
+	h.tsTitle = fmt.Sprintf("%d.ts", time.Now().Unix())
+	filePath := filepath.Join(h.Stream.Path, h.tsTitle)
 	fw, err = h.CreateFileFn(filePath, false)
 	if err != nil {
 		h.Error("create file", zap.String("path", filePath), zap.Error(err))
 		return
 	}
 	h.Info("create file", zap.String("path", filePath))
-	inf := hls.PlaylistInf{
-		Duration: h.Fragment.Seconds(),
-		Title:    tsFilename,
-	}
-	if err = h.playlist.WriteInf(inf); err != nil {
-		return
-	}
+
 	if err = mpegts.WriteDefaultPATPacket(fw); err != nil {
 		return
 	}
