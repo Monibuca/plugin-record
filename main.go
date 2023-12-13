@@ -13,14 +13,13 @@ import (
 )
 
 type RecordConfig struct {
-	DefaultYaml
 	config.Subscribe
-	Flv        Record
-	Mp4        Record
-	Fmp4       Record
-	Hls        Record
-	Raw        Record
-	RawAudio   Record
+	Flv        Record `desc:"flv录制配置"`
+	Mp4        Record `desc:"mp4录制配置"`
+	Fmp4       Record `desc:"fmp4录制配置"`
+	Hls        Record `desc:"hls录制配置"`
+	Raw        Record `desc:"视频裸流录制配置"`
+	RawAudio   Record `desc:"音频裸流录制配置"`
 	recordings sync.Map
 }
 
@@ -28,7 +27,6 @@ type RecordConfig struct {
 var defaultYaml DefaultYaml
 var ErrRecordExist = errors.New("recorder exist")
 var RecordPluginConfig = &RecordConfig{
-	DefaultYaml: defaultYaml,
 	Flv: Record{
 		Path:          "record/flv",
 		Ext:           ".flv",
@@ -56,7 +54,7 @@ var RecordPluginConfig = &RecordConfig{
 	},
 }
 
-var plugin = InstallPlugin(RecordPluginConfig)
+var plugin = InstallPlugin(RecordPluginConfig, defaultYaml)
 
 func (conf *RecordConfig) OnEvent(event any) {
 	switch v := event.(type) {

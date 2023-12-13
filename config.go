@@ -7,11 +7,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
 
+	"m7s.live/engine/v4/config"
 	"m7s.live/engine/v4/util"
 )
 
@@ -52,12 +52,11 @@ type VideoFileInfo struct {
 }
 
 type Record struct {
-	Ext           string //文件扩展名
-	Path          string //存储文件的目录
-	AutoRecord    bool
-	Filter        string
-	Fragment      time.Duration //分片大小，0表示不分片
-	filterReg     *regexp.Regexp
+	Ext           string        `desc:"文件扩展名"`       //文件扩展名
+	Path          string        `desc:"存储文件的目录"`     //存储文件的目录
+	AutoRecord    bool          `desc:"是否自动录制"`      //是否自动录制
+	Filter        config.Regexp `desc:"录制过滤器"`       //录制过滤器
+	Fragment      time.Duration `desc:"分片大小，0表示不分片"` //分片大小，0表示不分片
 	fs            http.Handler
 	CreateFileFn  func(filename string, append bool) (FileWr, error) `json:"-" yaml:"-"`
 	GetDurationFn func(file io.ReadSeeker) uint32                    `json:"-" yaml:"-"`
@@ -68,14 +67,11 @@ func (r *Record) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Record) NeedRecord(streamPath string) bool {
-	return r.AutoRecord && (r.filterReg == nil || r.filterReg.MatchString(streamPath))
+	return r.AutoRecord && (!r.Filter.Valid() || r.Filter.MatchString(streamPath))
 }
 
 func (r *Record) Init() {
 	os.MkdirAll(r.Path, 0766)
-	if r.Filter != "" {
-		r.filterReg = regexp.MustCompile(r.Filter)
-	}
 	r.fs = http.FileServer(http.Dir(r.Path))
 	r.CreateFileFn = func(filename string, append bool) (file FileWr, err error) {
 		filePath := filepath.Join(r.Path, filename)
