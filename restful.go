@@ -158,7 +158,7 @@ func (conf *RecordConfig) API_list_page(w http.ResponseWriter, r *http.Request) 
 			if pageNumInt > 0 {
 				totalPageCount = (totalCount / pageSizeInt) + 1 //总页数
 				remainCount := totalCount % pageSizeInt         //分页后剩余条数
-				if remainCount == 0 {
+				if remainCount == 0 && totalPageCount != 1 {
 					totalPageCount = totalCount / pageSizeInt
 				}
 				if pageNumInt > totalPageCount {
@@ -245,7 +245,7 @@ func (conf *RecordConfig) API_list_recording_page(w http.ResponseWriter, r *http
 				if pageNumInt > 0 {
 					totalPageCount = (totalCount / pageSizeInt) + 1 //总页数
 					remainCount := totalCount % pageSizeInt         //分页后剩余条数
-					if remainCount == 0 {
+					if remainCount == 0 && totalPageCount != 1 {
 						totalPageCount = totalCount / pageSizeInt
 					}
 					if pageNumInt > totalPageCount {
