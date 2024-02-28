@@ -3,6 +3,8 @@ package record
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -108,6 +110,30 @@ func (conf *RecordConfig) API_stop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	util.ReturnError(util.APIErrorNotFound, "no such recorder", w, r)
+}
+
+func (conf *RecordConfig) API_recordfile_delete(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	path := query.Get("path")
+	err := os.Remove(path)
+	if err != nil {
+		util.ReturnError(1, "删除文件时出错", w, r)
+		return
+	}
+	util.ReturnOK(w, r)
+}
+
+func (conf *RecordConfig) API_recordfile_modify(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	path := query.Get("path")
+	newName := query.Get("newName")
+	dirPath := filepath.Dir(path)
+	err := os.Rename(path, dirPath+"/"+newName)
+	if err != nil {
+		util.ReturnError(1, "修改文件时出错", w, r)
+		return
+	}
+	util.ReturnOK(w, r)
 }
 
 func (conf *RecordConfig) API_list_page(w http.ResponseWriter, r *http.Request) {
