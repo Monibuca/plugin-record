@@ -117,6 +117,7 @@ func (conf *RecordConfig) API_recordfile_delete(w http.ResponseWriter, r *http.R
 	path := query.Get("path")
 	err := os.Remove(path)
 	if err != nil {
+		plugin.Error("修改文件时出错", zap.Error(err))
 		util.ReturnError(1, "删除文件时出错", w, r)
 		return
 	}
@@ -130,6 +131,7 @@ func (conf *RecordConfig) API_recordfile_modify(w http.ResponseWriter, r *http.R
 	dirPath := filepath.Dir(path)
 	err := os.Rename(path, dirPath+"/"+newName)
 	if err != nil {
+		plugin.Error("修改文件时出错", zap.Error(err))
 		util.ReturnError(1, "修改文件时出错", w, r)
 		return
 	}
