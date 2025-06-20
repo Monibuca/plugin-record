@@ -66,6 +66,6 @@ record:
 
 // GO仓库刷新INDEX
 
-GOPROXY=proxy.golang.org go list -m github.com/eanfs/plugin-record/v4@v4.9.2
+GOPROXY=proxy.golang.org go list -m github.com/eanfs/plugin-record/v4@v4.9.3
 
 GOPROXY=proxy.golang.org go list -m github.com/eanfs/plugin-transform/v1@v1.0.0

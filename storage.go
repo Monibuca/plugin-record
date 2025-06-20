@@ -2,11 +2,15 @@ package record
 
 import (
 	"context"
+	"sync"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"go.uber.org/zap"
 )
+
+var uploadSemaphore = make(chan struct{}, 8)
+var once sync.Once
 
 type StorageConfig struct {
 	Endpoint  string
@@ -17,6 +21,9 @@ type StorageConfig struct {
 }
 
 func (r *Recorder) UploadFile(filePath string, fileName string) {
+	// 使用信号量控制并发数
+	uploadSemaphore <- struct{}{}
+	defer func() { <-uploadSemaphore }()
 	// 判断Storage是否配置，未配置就不上传
 	if r.Storage.Endpoint == "" || r.Storage.SecretKey == "" || r.Storage.AccessKey == "" || r.Storage.Bucket == "" {
 		r.Info("Minio Storage Config Not Configured")

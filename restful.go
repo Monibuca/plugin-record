@@ -120,18 +120,7 @@ func (conf *RecordConfig) API_stop(w http.ResponseWriter, r *http.Request) {
 	if recorder, ok := conf.recordings.Load(id); ok {
 		recorder.(ISubscriber).Stop(zap.String("reason", "api"))
 		util.ReturnOK(w, r)
-
-	}
-
-	eventRecord := EventRecord{RecordMode: "1", IsDelete: "1"}
-	// 清空数据库中的录制记录
-	err := db.Where("rec_id = ?", id).Updates(eventRecord).Error
-
-	if err != nil {
-		plugin.Error("删除录制记录时出错", zap.Error(err))
-		util.ReturnError(1, "删除录制记录时出错", w, r)
-	} else {
-		plugin.Info("delete recorder success", zap.String("id", id))
+		return
 	}
 	util.ReturnError(util.APIErrorNotFound, "no such recorder", w, r)
 }
