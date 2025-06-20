@@ -2,13 +2,14 @@ package record
 
 import (
 	"fmt"
-	"go.uber.org/zap/zapcore"
 	"io"
 	"net"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"go.uber.org/zap/zapcore"
 
 	"go.uber.org/zap"
 	. "m7s.live/engine/v4"
@@ -114,7 +115,7 @@ func (r *FLVRecorder) Start(streamPath string) (err error) {
 }
 
 func (r *FLVRecorder) StartWithFileName(streamPath string, fileName string) error {
-	r.ID = fmt.Sprintf("%s/flv/%s", streamPath, r.GetRecordModeString(r.RecordMode))
+	r.ID = fmt.Sprintf("%s/flv/%s", streamPath, fileName)
 	return r.start(r, streamPath, SUBTYPE_FLV)
 }
 
@@ -296,7 +297,7 @@ func (r *FLVRecorder) OnEvent(event any) {
 	}
 }
 
-func (r *FLVRecorder) Close() error {
+func (r *FLVRecorder) Close() (err error) {
 	if r.File != nil {
 		if !r.append {
 			go func() {
@@ -318,7 +319,14 @@ func (r *FLVRecorder) Close() error {
 			go r.writeMetaData(r.File, r.duration)
 		} else {
 			plugin.Info("====into close append true===recordid is===" + r.ID + "====record type is " + r.GetRecordModeString(r.RecordMode))
-			return r.File.Close()
+			err = r.File.Close()
+			if err != nil {
+				r.Error("FLV File Close", zap.Error(err))
+			} else {
+				r.Info("FLV File Close", zap.Error(err))
+				go r.UploadFile(r.Path, r.filePath)
+			}
+			return err
 		}
 	}
 	return nil

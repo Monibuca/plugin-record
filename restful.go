@@ -53,6 +53,7 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t := query.Get("type")
+	duration := query.Get("duration")
 	var id string
 	var err error
 	var irecorder IRecorder
@@ -94,6 +95,13 @@ func (conf *RecordConfig) API_start(w http.ResponseWriter, r *http.Request) {
 		util.ReturnError(util.APIErrorInternal, err.Error(), w, r)
 		return
 	}
+
+	// 设置录制时长限制
+	if duration != "" {
+		if d, err := time.ParseDuration(duration); err == nil {
+			recorder.Duration = d
+		}
+	}
 	util.ReturnError(util.APIErrorNone, id, w, r)
 }
 
@@ -108,7 +116,8 @@ func (conf *RecordConfig) API_list_recording(w http.ResponseWriter, r *http.Requ
 }
 
 func (conf *RecordConfig) API_stop(w http.ResponseWriter, r *http.Request) {
-	if recorder, ok := conf.recordings.Load(r.URL.Query().Get("id")); ok {
+	id := r.URL.Query().Get("id")
+	if recorder, ok := conf.recordings.Load(id); ok {
 		recorder.(ISubscriber).Stop(zap.String("reason", "api"))
 		util.ReturnOK(w, r)
 		return
@@ -248,12 +257,12 @@ func (conf *RecordConfig) API_list_recording_page(w http.ResponseWriter, r *http
 		query := r.URL.Query()
 		pageSize := query.Get("pageSize")
 		pageNum := query.Get("pageNum")
-		ID := query.Get("ID") //搜索条件
+		RecId := query.Get("id") //搜索条件
 		var outRecordings []any
 		var totalPageCount int = 1
-		if ID != "" {
+		if RecId != "" {
 			for _, record := range recordings {
-				if strings.Contains(record.(IRecorder).GetRecorder().ID, ID) {
+				if record.(IRecorder).GetRecorder().ID == RecId {
 					outRecordings = append(outRecordings, record)
 				}
 			}

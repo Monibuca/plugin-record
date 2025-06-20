@@ -3,6 +3,7 @@ package record
 import (
 	"github.com/Eyevinn/mp4ff/aac"
 	"github.com/Eyevinn/mp4ff/mp4"
+	"go.uber.org/zap"
 	. "m7s.live/engine/v4"
 	"m7s.live/engine/v4/codec"
 	"time"
@@ -67,6 +68,7 @@ func (r *FMP4Recorder) UpdateTimeout(timeout time.Duration) {
 func NewFMP4Recorder() *FMP4Recorder {
 	r := &FMP4Recorder{}
 	r.Record = RecordPluginConfig.Fmp4
+	r.Storage = RecordPluginConfig.Storage
 	return r
 }
 
@@ -80,7 +82,7 @@ func (r *FMP4Recorder) StartWithFileName(streamPath string, fileName string) err
 	return r.start(r, streamPath, SUBTYPE_RAW)
 }
 
-func (r *FMP4Recorder) Close() error {
+func (r *FMP4Recorder) Close() (err error) {
 	if r.File != nil {
 		if r.video.fragment != nil {
 			r.video.fragment.Encode(r.File)
@@ -90,7 +92,14 @@ func (r *FMP4Recorder) Close() error {
 			r.audio.fragment.Encode(r.File)
 			r.audio.fragment = nil
 		}
-		r.File.Close()
+		err = r.File.Close()
+		if err != nil {
+			r.Error("Fmp4 File Close", zap.Error(err))
+		} else {
+			r.Info("Fmp4 File Close", zap.Error(err))
+			go r.UploadFile(r.Path, r.filePath)
+		}
+		return err
 	}
 	return nil
 }

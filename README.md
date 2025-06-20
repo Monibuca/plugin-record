@@ -63,3 +63,9 @@ record:
 - `http://localhost:8080/record/live/test.flv` 将会读取对应的flv文件
 - `http://localhost:8080/record/live/test.mp4` 将会读取对应的fmp4文件
 
+
+// GO仓库刷新INDEX
+
+GOPROXY=proxy.golang.org go list -m github.com/eanfs/plugin-record/v4@v4.9.3
+
+GOPROXY=proxy.golang.org go list -m github.com/eanfs/plugin-transform/v1@v1.0.0

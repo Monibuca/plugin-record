@@ -6,7 +6,7 @@ import "time"
 type EventRecord struct {
 	Id             uint   `json:"id" desc:"自增长id" gorm:"primaryKey;autoIncrement"`
 	StreamPath     string `json:"streamPath" desc:"流路径" gorm:"type:varchar(255);comment:流路径"`
-	EventId        string `json:"eventId" desc:"事件编号" gorm:"type:varchar(255);comment:事件编号"`
+	RecId          string `json:"RecId" desc:"录制编号" gorm:"type:varchar(255);comment:录制编号"`
 	RecordMode     string `json:"recordMode" desc:"事件类型,0=连续录像模式，1=事件录像模式" gorm:"type:varchar(255);comment:事件类型,0=连续录像模式，1=事件录像模式"`
 	EventName      string `json:"eventName" desc:"事件名称" gorm:"type:varchar(255);comment:事件名称"`
 	BeforeDuration string `json:"beforeDuration" desc:"事件前缓存时长" gorm:"type:varchar(255);comment:事件前缓存时长"`
@@ -37,6 +37,7 @@ type Exception struct {
 	AlarmDesc  string `json:"alarmDesc" gorm:"type:varchar(50)"`
 	ServerIP   string `json:"serverIP" gorm:"type:varchar(50)"`
 	StreamPath string `json:"streamPath" gorm:"type:varchar(50)"`
+	FileName   string `json:"fileName" gorm:"type:varchar(100)"`
 }
 
 // sqlite数据库用来存放每个flv文件的关键帧对应的offset及abstime数据

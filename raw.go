@@ -36,6 +36,7 @@ func (r *RawRecorder) UpdateTimeout(timeout time.Duration) {
 func NewRawRecorder() (r *RawRecorder) {
 	r = &RawRecorder{}
 	r.Record = RecordPluginConfig.Raw
+	r.Storage = RecordPluginConfig.Storage
 	return r
 }
 
@@ -64,6 +65,12 @@ func (r *RawRecorder) StartWithFileName(streamPath string, fileName string) erro
 func (r *RawRecorder) Close() (err error) {
 	if r.File != nil {
 		err = r.File.Close()
+		if err != nil {
+			r.Error("Raw File Close", zap.Error(err))
+		} else {
+			r.Info("Raw File Close", zap.Error(err))
+			go r.UploadFile(r.Path, r.filePath)
+		}
 	}
 	return
 }

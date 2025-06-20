@@ -212,13 +212,15 @@ func (conf *RecordConfig) API_event_start(w http.ResponseWriter, r *http.Request
 		util.ReturnError(-1, errorJsonString(resultJsonData), w, r)
 		return
 	}
+
 	//TODO 获取到磁盘容量低，磁盘报错的情况下需要报异常，并且根据事件类型做出处理
-	if getDisckException(streamPath) {
-		resultJsonData["msg"] = "disk is full"
-		util.ReturnError(-1, errorJsonString(resultJsonData), w, r)
-		return
-	}
-	eventId := eventRecordModel.EventId
+	// if getDisckException(streamPath) {
+	// 	resultJsonData["msg"] = "disk is full"
+	// 	util.ReturnError(-1, errorJsonString(resultJsonData), w, r)
+	// 	return
+	// }
+
+	eventId := eventRecordModel.RecId
 	if eventId == "" {
 		resultJsonData["msg"] = "no eventId"
 		util.ReturnError(-1, errorJsonString(resultJsonData), w, r)
@@ -292,11 +294,11 @@ func (conf *RecordConfig) API_event_start(w http.ResponseWriter, r *http.Request
 		// 定义 User 结构体作为查询条件
 		queryRecord := EventRecord{StreamPath: streamPath}
 		db.Where(&queryRecord).Order("id DESC").First(&oldeventRecord)
-		eventRecord = EventRecord{StreamPath: streamPath, EventId: eventId, RecordMode: "1", EventName: eventName, BeforeDuration: beforeDuration,
+		eventRecord = EventRecord{StreamPath: streamPath, RecId: eventId, RecordMode: "1", EventName: eventName, BeforeDuration: beforeDuration,
 			AfterDuration: afterDuration, CreateTime: recordTime, StartTime: startTime, EndTime: endTime, Filepath: oldeventRecord.Filepath, Filename: oldeventRecord.Filename,
 			EventDesc: eventRecordModel.EventDesc, Urlpath: oldeventRecord.Urlpath, Type: t}
 	} else {
-		eventRecord = EventRecord{StreamPath: streamPath, EventId: eventId, RecordMode: "1", EventName: eventName, BeforeDuration: beforeDuration,
+		eventRecord = EventRecord{StreamPath: streamPath, RecId: eventId, RecordMode: "1", EventName: eventName, BeforeDuration: beforeDuration,
 			AfterDuration: afterDuration, CreateTime: recordTime, StartTime: startTime, EndTime: endTime, Filepath: filepath, Filename: fileName + recorder.Ext, EventDesc: eventRecordModel.EventDesc, Urlpath: urlpath, Type: t}
 	}
 	err = db.Omit("id", "fragment", "isDelete").Create(&eventRecord).Error

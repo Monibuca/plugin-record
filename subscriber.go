@@ -38,6 +38,7 @@ type IRecorder interface {
 
 type Recorder struct {
 	Subscriber
+	Storage  StorageConfig
 	SkipTS   uint32
 	Record   `json:"-" yaml:"-"`
 	File     FileWr `json:"-" yaml:"-"`
@@ -67,6 +68,7 @@ func (r *Recorder) CreateFile() (f FileWr, err error) {
 		logFields = append(logFields, zap.Error(err))
 		r.Error("create file", logFields...)
 	}
+	r.SaveToDB()
 	return
 }
 
@@ -121,12 +123,21 @@ func (r *Recorder) cut(absTime uint32) {
 	}
 }
 
+func (r *Recorder) stopByDuration(absTime uint32) {
+	if ts := absTime - r.SkipTS; time.Duration(ts)*time.Millisecond >= r.Duration {
+		r.Info("stop recorder by duration")
+		r.SkipTS = absTime
+		r.Stop()
+	}
+}
+
 // func (r *Recorder) Stop(reason ...zap.Field) {
 // 	r.Close()
 // 	r.Subscriber.Stop(reason...)
 // }
 
 func (r *Recorder) OnEvent(event any) {
+	// r.Debug("🟡->🟡->🟡 Recorder OnEvent: ", zap.String("event", reflect.TypeOf(event).String()))
 	switch v := event.(type) {
 	case IRecorder:
 		if file, err := r.Spesific.(IRecorder).CreateFile(); err == nil {
@@ -155,6 +166,9 @@ func (r *Recorder) OnEvent(event any) {
 		}
 		if r.Fragment > 0 && v.IFrame {
 			r.cut(v.AbsTime)
+		}
+		if r.Duration > 0 && v.IFrame {
+			r.stopByDuration(v.AbsTime)
 		}
 	default:
 		r.Subscriber.OnEvent(event)

@@ -4,16 +4,17 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"io"
-	. "m7s.live/engine/v4"
-	"m7s.live/engine/v4/codec"
-	"m7s.live/engine/v4/config"
-	"m7s.live/engine/v4/util"
 	"net"
 	"os"
 	"sync"
 	"time"
+
+	"gorm.io/gorm"
+	. "m7s.live/engine/v4"
+	"m7s.live/engine/v4/codec"
+	"m7s.live/engine/v4/config"
+	"m7s.live/engine/v4/util"
 )
 
 type RecordConfig struct {
@@ -26,15 +27,16 @@ type RecordConfig struct {
 	Raw                         Record `desc:"视频裸流录制配置"`
 	RawAudio                    Record `desc:"音频裸流录制配置"`
 	recordings                  sync.Map
-	beforeDuration              int     `desc:"事件前缓存时长"`
-	afterDuration               int     `desc:"事件后缓存时长"`
-	MysqlDSN                    string  `desc:"mysql数据库连接字符串"`
-	ExceptionPostUrl            string  `desc:"第三方异常上报地址"`
-	SqliteDbPath                string  `desc:"sqlite数据库路径"`
-	DiskMaxPercent              float64 `desc:"硬盘使用百分之上限值，超过后报警"`
-	LocalIp                     string  `desc:"本机IP"`
-	RecordFileExpireDays        int     `desc:"录像自动删除的天数,0或未设置表示不自动删除"`
-	RecordPathNotShowStreamPath bool    `desc:"录像路径中是否包含streamPath，默认true"`
+	beforeDuration              int           `desc:"事件前缓存时长"`
+	afterDuration               int           `desc:"事件后缓存时长"`
+	MysqlDSN                    string        `desc:"mysql数据库连接字符串"`
+	ExceptionPostUrl            string        `desc:"第三方异常上报地址"`
+	SqliteDbPath                string        `desc:"sqlite数据库路径"`
+	DiskMaxPercent              float64       `desc:"硬盘使用百分之上限值，超过后报警"`
+	LocalIp                     string        `desc:"本机IP"`
+	RecordFileExpireDays        int           `desc:"录像自动删除的天数,0或未设置表示不自动删除"`
+	RecordPathNotShowStreamPath bool          `desc:"录像路径中是否包含streamPath，默认true"`
+	Storage                     StorageConfig `desc:"MINIO 配置"`
 }
 
 //go:embed default.yaml
@@ -70,7 +72,7 @@ var RecordPluginConfig = &RecordConfig{
 	afterDuration:               30,
 	MysqlDSN:                    "",
 	ExceptionPostUrl:            "http://www.163.com",
-	SqliteDbPath:                "./sqlite.db",
+	SqliteDbPath:                "./m7sv4.db",
 	DiskMaxPercent:              80.00,
 	LocalIp:                     getLocalIP(),
 	RecordFileExpireDays:        0,
@@ -109,15 +111,15 @@ func (conf *RecordConfig) OnEvent(event any) {
 					var eventRecords []EventRecord
 					expireTime := time.Now().AddDate(0, 0, -conf.RecordFileExpireDays)
 					// 创建包含查询条件的 EventRecord 对象
-					queryRecord := EventRecord{
-						EventLevel: "1", // 查询条件：event_level = 1
-					}
-					fmt.Printf(" Create Time: %s\n", expireTime.Format("2006-01-02 15:04:05"))
-					err = db.Where(&queryRecord).Where("create_time < ?", expireTime).Find(&eventRecords).Error
+					// queryRecord := EventRecord{
+					// 	IsDelete: "0", // 查询条件：is_delete = 1
+					// }
+					fmt.Printf(" 进行录像文件自动删除： 即将删除创建时间小于 %s 的录像文件。\n", expireTime.Format("2006-01-02 15:04:05"))
+					err = db.Where("create_time < ?", expireTime).Find(&eventRecords).Error
 					if err == nil {
 						if len(eventRecords) > 0 {
 							for _, record := range eventRecords {
-								fmt.Printf("ID: %d, Create Time: %s,filepath is %s\n", record.Id, record.CreateTime, record.Filepath)
+								fmt.Printf("执行删除 录像ID: %d, 创建时间: %s, 录像文件: %s\n", record.RecId, record.CreateTime, record.Filepath)
 								err = os.Remove(record.Filepath)
 								if err != nil {
 									fmt.Println("error is " + err.Error())
@@ -135,6 +137,9 @@ func (conf *RecordConfig) OnEvent(event any) {
 				}
 			}()
 		}
+		//检查录像任务是否存在，不存在则启动
+		conf.CheckRecordDB()
+
 		conf.Flv.Init()
 		conf.Mp4.Init()
 		conf.Fmp4.Init()

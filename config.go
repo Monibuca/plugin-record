@@ -52,11 +52,12 @@ type VideoFileInfo struct {
 }
 
 type Record struct {
-	Ext           string        `desc:"文件扩展名"`       //文件扩展名
-	Path          string        `desc:"存储文件的目录"`     //存储文件的目录
-	AutoRecord    bool          `desc:"是否自动录制"`      //是否自动录制
-	Filter        config.Regexp `desc:"录制过滤器"`       //录制过滤器
-	Fragment      time.Duration `desc:"分片大小，0表示不分片"` //分片大小，0表示不分片
+	Ext           string        `desc:"文件扩展名"`           //文件扩展名
+	Path          string        `desc:"存储文件的目录"`         //存储文件的目录
+	AutoRecord    bool          `desc:"是否自动录制"`          //是否自动录制
+	Filter        config.Regexp `desc:"录制过滤器"`           //录制过滤器
+	Fragment      time.Duration `desc:"分片大小，0表示不分片"`     //分片大小，0表示不分片
+	Duration      time.Duration `desc:"视频最大录制时长，0表示不限制"` //分片大小，0表示不分片
 	http.Handler  `json:"-" yaml:"-"`
 	CreateFileFn  func(filename string, append bool) (FileWr, error) `json:"-" yaml:"-"`
 	GetDurationFn func(file io.ReadSeeker) uint32                    `json:"-" yaml:"-"`
